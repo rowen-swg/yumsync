@@ -67,13 +67,13 @@ def create_metadata(repo, packages=None, comps=None):
     if comps and os.path.exists(groupdir):
         shutil.rmtree(groupdir)
 
-def create_combined_metadata(repo, dest, comps=None):
+def create_combined_metadata(repo, dest, arch, comps=None):
     """ Creates YUM metadata for the entire Packages directory.
 
     When used with versioning, this creates a combined repository of all
     packages ever synced for the repository.
     """
-    combined_repo = set_path(repo, util.get_packages_dir(dest))
+    combined_repo = set_path(repo, util.get_packages_dir(dest,arch))
     create_metadata(combined_repo, None, comps)
 
 def retrieve_group_comps(repo):
@@ -93,7 +93,7 @@ def retrieve_group_comps(repo):
             log.debug('No group data available for repository %s' % repo.id)
             return None
 
-def sync(repo, dest, version, delete=False, combined=False, yumcallback=None,
+def sync(repo, dest, arch, version, delete=False, combined=False, yumcallback=None,
          repocallback=None):
     """ Sync repository contents from a remote source.
 
@@ -102,7 +102,7 @@ def sync(repo, dest, version, delete=False, combined=False, yumcallback=None,
     If the delete flag is passed, any packages found on the local filesystem
     which are not present in the remote repository will be deleted.
     """
-    util.make_dir(util.get_packages_dir(dest))  # Make package storage dir
+    util.make_dir(util.get_packages_dir(dest,arch))  # Make package storage dir
 
     @contextmanager
     def suppress():
@@ -122,11 +122,11 @@ def sync(repo, dest, version, delete=False, combined=False, yumcallback=None,
     if version:
         dest_dir = util.get_versioned_dir(dest, version)
         util.make_dir(dest_dir)
-        packages_dir = util.get_packages_dir(dest_dir)
-        util.symlink(packages_dir, util.get_relative_packages_dir())
+        packages_dir = util.get_packages_dir(dest_dir,arch)
+        util.symlink(packages_dir, util.get_relative_packages_dir(arch))
     else:
         dest_dir = dest
-        packages_dir = util.get_packages_dir(dest_dir)
+        packages_dir = util.get_packages_dir(dest_dir,arch)
     try:
         yb = util.get_yum()
         repo = set_path(repo, packages_dir)
@@ -169,9 +169,9 @@ def sync(repo, dest, version, delete=False, combined=False, yumcallback=None,
         package_names = []
         for package in packages:
             package_names.append(util.get_package_filename(package))
-        for _file in os.listdir(util.get_packages_dir(dest)):
+        for _file in os.listdir(util.get_packages_dir(dest,arch)):
             if not _file in package_names:
-                package_path = util.get_package_path(dest, _file)
+                package_path = util.get_package_path(dest, arch, _file)
                 log.debug('Deleting file %s' % package_path)
                 os.remove(package_path)
     log.info('Finished downloading packages from repository %s' % repo.id)
@@ -182,7 +182,7 @@ def sync(repo, dest, version, delete=False, combined=False, yumcallback=None,
     pkglist = []
     for pkg in packages:
         pkglist.append(
-            util.get_package_relativedir(util.get_package_filename(pkg))
+            util.get_package_relativedir(util.get_package_filename(pkg),arch)
         )
 
     create_metadata(repo, pkglist, comps)
