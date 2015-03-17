@@ -40,31 +40,36 @@ def get_repo_dir(basedir, name):
     This is the directory in which all of the repository data will live. The
     path can be relative or fully qualified.
     """
-    return basedir
+    return os.path.join(basedir, name)
 
-def get_packages_dir(repodir, PACKAGESDIR):
+def get_packages_dir(repodir, osver, arch):
     """ Return the path to the packages directory of a repository. """
-    return os.path.join(repodir, PACKAGESDIR)
+    return os.path.join(repodir, osver, arch )
 
-def get_package_path(repodir, PACKAGESDIR, packagename):
+def get_ver_packages_dir(repodir, arch):
+    """ Return the path to the versioned packages directory of a repository.
+        This is used for symlinking  """
+    return os.path.join(repodir, arch )
+
+def get_package_path(repodir, osver, arch, packagename):
     """ Return the path to an individual package file. """
-    return os.path.join(repodir, PACKAGESDIR, packagename)
+    return os.path.join(repodir, osver, arch, packagename)
 
-def get_relative_packages_dir(PACKAGESDIR):
+def get_relative_packages_dir(arch):
     """ Return the relative path to the packages directory. """
-    return os.path.join('..', PACKAGESDIR)
+    return os.path.join('..', arch)
 
-def get_package_relativedir(packagename, PACKAGESDIR):
+def get_package_relativedir(packagename, osver, arch):
     """ Return the relative path to an individual package file.
 
     This is used during repository metadata creation so that fragments of the
     local filesystem layout are not found in the repository index.
     """
-    return os.path.join(PACKAGESDIR, packagename)
+    return os.path.join(osver, arch, packagename)
 
-def get_versioned_dir(repodir, version):
+def get_versioned_dir(repodir, osver, version):
     """ Return the path to a specific version of a repository. """
-    return os.path.join(repodir, version)
+    return os.path.join(repodir, osver, version)
 
 def get_latest_symlink_path(repodir):
     """ Return the path to the latest repository directory.
