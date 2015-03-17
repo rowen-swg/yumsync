@@ -71,13 +71,13 @@ def get_versioned_dir(repodir, osver, version):
     """ Return the path to a specific version of a repository. """
     return os.path.join(repodir, osver, version)
 
-def get_latest_symlink_path(repodir):
+def get_latest_symlink_path(repodir, osver):
     """ Return the path to the latest repository directory.
 
     The latest directory will be created as a symbolic link, pointing back to
     the newest versioned copy.
     """
-    return os.path.join(repodir, LATESTREPO)
+    return os.path.join(repodir, osver, LATESTREPO)
 
 def get_package_filename(pkg):
     """ From a repository object, return the name of the RPM file. """

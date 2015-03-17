@@ -196,7 +196,7 @@ def sync(repo, dest, osver, arch, version, delete=False, combined=False, yumcall
     log.info('Finished creating metadata for repository %s' % repo.id)
 
     if version:
-        latest_symlink = util.get_latest_symlink_path(dest)
+        latest_symlink = util.get_latest_symlink_path(dest, osver)
         util.symlink(latest_symlink, version)
 
 def callback(callback_obj, repo, event, data=None):
