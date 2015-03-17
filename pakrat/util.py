@@ -1,9 +1,32 @@
+# pakrat - A tool for mirroring and versioning YUM repositories.
+# Copyright 2013 Ryan Uber <ru@ryanuber.com>. All rights reserved.
+#
+# MIT LICENSE
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+# LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+# WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 import os
 import yum
 from pakrat.yumbase import YumBase
 from pakrat import log
 
-PACKAGESDIR = 'Packages'
 METADATADIR = 'repodata'
 LATESTREPO = 'latest'
 
@@ -17,21 +40,21 @@ def get_repo_dir(basedir, name):
     This is the directory in which all of the repository data will live. The
     path can be relative or fully qualified.
     """
-    return os.path.join(basedir, name)
+    return basedir
 
-def get_packages_dir(repodir):
+def get_packages_dir(repodir, PACKAGESDIR):
     """ Return the path to the packages directory of a repository. """
     return os.path.join(repodir, PACKAGESDIR)
 
-def get_package_path(repodir, packagename):
+def get_package_path(repodir, PACKAGESDIR, packagename):
     """ Return the path to an individual package file. """
     return os.path.join(repodir, PACKAGESDIR, packagename)
 
-def get_relative_packages_dir():
+def get_relative_packages_dir(PACKAGESDIR):
     """ Return the relative path to the packages directory. """
     return os.path.join('..', PACKAGESDIR)
 
-def get_package_relativedir(packagename):
+def get_package_relativedir(packagename, PACKAGESDIR):
     """ Return the relative path to an individual package file.
 
     This is used during repository metadata creation so that fragments of the
