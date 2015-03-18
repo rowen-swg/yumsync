@@ -59,13 +59,13 @@ def get_relative_packages_dir(arch):
     """ Return the relative path to the packages directory. """
     return os.path.join('..', arch)
 
-def get_package_relativedir(packagename, osver, arch):
+def get_package_relativedir(packagename, arch):
     """ Return the relative path to an individual package file.
 
     This is used during repository metadata creation so that fragments of the
     local filesystem layout are not found in the repository index.
     """
-    return os.path.join(osver, arch, packagename)
+    return os.path.join(arch, packagename)
 
 def get_versioned_dir(repodir, osver, version):
     """ Return the path to a specific version of a repository. """

@@ -182,7 +182,7 @@ def sync(repo, dest, osver, arch, version, delete=False, combined=False, yumcall
     pkglist = []
     for pkg in packages:
         pkglist.append(
-            util.get_package_relativedir(util.get_package_filename(pkg),osver,arch)
+            util.get_package_relativedir(util.get_package_filename(pkg),arch)
         )
 
     create_metadata(repo, pkglist, comps)
