@@ -29,6 +29,7 @@ from pakrat import log
 
 METADATADIR = 'repodata'
 LATESTREPO = 'latest'
+STABLEREPO = 'stable'
 
 def get_yum():
     """ Retrieve a YumBase object, pre-configured. """
@@ -78,6 +79,14 @@ def get_latest_symlink_path(repodir, osver):
     the newest versioned copy.
     """
     return os.path.join(repodir, osver, LATESTREPO)
+
+def get_stable_symlink_path(repodir, osver):
+    """ Return the path to the latest repository directory.
+
+    The latest directory will be created as a symbolic link, pointing back to
+    the newest versioned copy.
+    """
+    return os.path.join(repodir, osver, STABLEREPO)
 
 def get_package_filename(pkg):
     """ From a repository object, return the name of the RPM file. """

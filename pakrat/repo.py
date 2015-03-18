@@ -93,7 +93,7 @@ def retrieve_group_comps(repo):
             log.debug('No group data available for repository %s' % repo.id)
             return None
 
-def sync(repo, dest, osver, arch, version, delete=False, combined=False, yumcallback=None,
+def sync(repo, dest, osver, arch, version, stableversion, delete=False, combined=False, yumcallback=None,
          repocallback=None):
     """ Sync repository contents from a remote source.
 
@@ -198,6 +198,8 @@ def sync(repo, dest, osver, arch, version, delete=False, combined=False, yumcall
     if version:
         latest_symlink = util.get_latest_symlink_path(dest, osver)
         util.symlink(latest_symlink, version)
+        stable_symlink = util.get_stable_symlink_path(dest, osver)
+        util.symlink(stable_symlink, stableversion)
 
 def callback(callback_obj, repo, event, data=None):
     """ Abstracts calling class callbacks.
