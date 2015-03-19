@@ -2,6 +2,8 @@ Pakrat
 -------
 
 A tool to mirror and version YUM repositories
+The modrepo forked version extends the paths created when versioning and enables a stable link,
+so that a latest and stable version can be set for each repo.
 
 What does it do?
 ----------------
@@ -16,9 +18,9 @@ $ pakrat --repodir /etc/yum.repos.d
 
   repo              done/total       complete    metadata
   -------------------------------------------------------
-  base               357/6381        5%          -         
-  updates            112/1100        10%         -         
-  extras              13/13          100%        complete  
+  base               357/6381        5%          -
+  updates            112/1100        10%         -
+  extras              13/13          100%        complete
 
   total:             482/7494        6%
 
