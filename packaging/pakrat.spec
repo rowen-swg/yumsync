@@ -2,8 +2,8 @@
 %define pakrat_dir %(tar -tzf %{SOURCE0} | egrep '^(\./)?pakrat(-[^/]*)?/$')
 
 name: pakrat
-summary: A Python library for mirroring and versioning YUM repositories
-version: 0.3.2
+summary: A Python library for mirroring and versioning YUM repositories -- modrepo version
+version: 0.5.0
 release: 1%{?dist}
 buildarch: noarch
 license: MIT
@@ -19,6 +19,8 @@ standard YUM repository configuration format and supports baseurls
 as well as mirrorlists. Pakrat provides both a command-line
 interface as well as an easy-to-use Python api for integration with
 other projects.
+This version should work with centos 5 and supports a more refined directory
+hierarchy.
 
 %prep
 %setup -n %{pakrat_dir}

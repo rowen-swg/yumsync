@@ -39,16 +39,23 @@ def set_path(repo, path):
 
     return result
 
-def create_metadata(repo, packages=None, comps=None):
+def create_metadata(repo, packages=None, comps=None, osver=None):
     """ Generate YUM metadata for a repository.
 
     This method accepts a repository object and, based on its configuration,
     generates YUM metadata for it using the createrepo sister library.
     """
+
+    if "centos5" == osver:
+      sumtype = "sha"
+    else:
+      sumtype = "sha256"
+
     util.validate_repo(repo)
     conf = createrepo.MetaDataConfig()
     conf.directory = os.path.dirname(repo.pkgdir)
     conf.outputdir = os.path.dirname(repo.pkgdir)
+    conf.sumtype = sumtype
     if packages:
         conf.pkglist = packages
     conf.quiet = True
@@ -74,7 +81,7 @@ def create_combined_metadata(repo, dest, osver, arch, comps=None):
     packages ever synced for the repository.
     """
     combined_repo = set_path(repo, util.get_packages_dir(dest,osver,arch))
-    create_metadata(combined_repo, None, comps)
+    create_metadata(combined_repo, None, comps, osver)
 
 def retrieve_group_comps(repo):
     """ Retrieve group comps XML data from a remote repository.
@@ -185,7 +192,7 @@ def sync(repo, dest, osver, arch, version, stableversion, delete=False, combined
             util.get_package_relativedir(util.get_package_filename(pkg),arch)
         )
 
-    create_metadata(repo, pkglist, comps)
+    create_metadata(repo, pkglist, comps, osver)
     if combined and version:
         create_combined_metadata(repo, dest, comps)
     elif os.path.exists(util.get_metadata_dir(dest)):
