@@ -149,6 +149,10 @@ def localsync(name, dest, osver, arch, version, stableversion, repocallback=None
     dest_dir = dest
     packages_dir = util.get_packages_dir(dest_dir,osver,arch)
 
+  actual_package_path = util.get_packages_dir(dest,osver,arch)
+  print "Creating / Syncing Local Repo ::",name
+  print "Scanning packages in ::",actual_package_path
+
   packages=[]
   log.info('Adding all Packages in repo path %s' % packages_dir)
   for _file in os.listdir(packages_dir):
@@ -171,6 +175,8 @@ def localsync(name, dest, osver, arch, version, stableversion, repocallback=None
     util.symlink(latest_symlink, version)
     stable_symlink = util.get_stable_symlink_path(dest, osver)
     util.symlink(stable_symlink, stableversion)
+
+  print "... Done \n"
 
 def sync(repo, dest, osver, arch, version, stableversion, delete=False, combined=False, yumcallback=None,
          repocallback=None):
