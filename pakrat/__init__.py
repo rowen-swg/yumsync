@@ -17,11 +17,11 @@ def localsync(repos={}, basedir=None, repoversion=None, callback=None):
   for key in repos:
     name = repos[key]["name"]
     dest = util.get_repo_dir(basedir, name)
-    osver = update_repos[key]["osver"]
-    arch = update_repos[key]["arch"]
-    stable = update_repos[key]["stable_release"]
-    repo_type = update_repos[key]["repo_type"]
-    url = update_repos[key]["url"]
+    osver = repos[key]["osver"]
+    arch = repos[key]["arch"]
+    stable = repos[key]["stable_release"]
+    repo_type = repos[key]["repo_type"]
+    url = repos[key]["url"]
     repo.localsync(name, dest, osver, arch, repoversion, stable)
 
 def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], repodirs=[], repofiles=[],

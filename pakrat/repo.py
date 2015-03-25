@@ -158,10 +158,11 @@ def localsync(name, dest, osver, arch, version, stableversion, repocallback=None
   pkglist = []
   for pkg in packages:
     pkglist.append(
-      util.get_package_relativedir(util.get_package_filename(pkg),arch)
+      #util.get_package_relativedir(util.get_package_filename(pkg),arch)
+      util.get_package_relativedir(pkg,arch)
     )
 
-  create_localmetadata(packages_dir, pkglist, comps, osver)
+  create_localmetadata(pkgdir=packages_dir, packages=pkglist, osver=osver)
 
   log.info('Finished creating metadata for repository %s' % name)
 
