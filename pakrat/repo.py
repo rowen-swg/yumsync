@@ -39,6 +39,41 @@ def set_path(repo, path):
 
     return result
 
+def create_localmetadata(pkgdir=None, packages=None, comps=None, osver=None):
+  """ Generate YUM metadata for a local repository.
+
+  This method accepts information about a local repo and
+  generates YUM metadata for it using the createrepo sister library.
+  """
+
+  if "centos5" == osver:
+    sumtype = "sha"
+  else:
+    sumtype = "sha256"
+
+  conf = createrepo.MetaDataConfig()
+  conf.directory = os.path.dirname(pkgdir)
+  conf.outputdir = os.path.dirname(pkgdir)
+  conf.sumtype = sumtype
+  if packages:
+    conf.pkglist = packages
+  conf.quiet = True
+
+  if comps:
+    groupdir = tempfile.mkdtemp()
+    conf.groupfile = os.path.join(groupdir, 'groups.xml')
+    with open(conf.groupfile, 'w') as f:
+      f.write(comps)
+
+  generator = createrepo.SplitMetaDataGenerator(conf)
+  generator.doPkgMetadata()
+  generator.doRepoMetadata()
+  generator.doFinalMove()
+
+  if comps and os.path.exists(groupdir):
+    shutil.rmtree(groupdir)
+
+
 def create_metadata(repo, packages=None, comps=None, osver=None):
     """ Generate YUM metadata for a repository.
 
@@ -99,6 +134,42 @@ def retrieve_group_comps(repo):
         except yum.Errors.GroupsError:
             log.debug('No group data available for repository %s' % repo.id)
             return None
+
+def localsync(name, dest, osver, arch, version, stableversion, repocallback=None):
+
+  """ Create Repo Metadata from Local package repo
+      Also Versions the local repository """
+
+  if version:
+    dest_dir = util.get_versioned_dir(dest, osver, version)
+    util.make_dir(dest_dir)
+    packages_dir = util.get_ver_packages_dir(dest_dir,arch)
+    util.symlink(packages_dir, util.get_relative_packages_dir(arch))
+  else:
+    dest_dir = dest
+    packages_dir = util.get_packages_dir(dest_dir,osver,arch)
+
+  packages=[]
+  log.info('Adding all Packages in repo path %s' % packages_dir)
+  for _file in os.listdir(packages_dir):
+    packages.append(_file)
+
+  log.info('Creating metadata for repository %s' % name)
+  pkglist = []
+  for pkg in packages:
+    pkglist.append(
+      util.get_package_relativedir(util.get_package_filename(pkg),arch)
+    )
+
+  create_localmetadata(packages_dir, pkglist, comps, osver)
+
+  log.info('Finished creating metadata for repository %s' % name)
+
+  if version:
+    latest_symlink = util.get_latest_symlink_path(dest, osver)
+    util.symlink(latest_symlink, version)
+    stable_symlink = util.get_stable_symlink_path(dest, osver)
+    util.symlink(stable_symlink, stableversion)
 
 def sync(repo, dest, osver, arch, version, stableversion, delete=False, combined=False, yumcallback=None,
          repocallback=None):

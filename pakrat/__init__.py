@@ -5,7 +5,24 @@ import signal
 import urlparse
 from pakrat import util, log, repo, repos, progress
 
-__version__ = '0.3.2'
+__version__ = '0.6.0'
+
+def localsync(repos={}, basedir=None, repoversion=None, callback=None):
+  """ Create Repo Metadata from Local package repo
+      Also Versions the local repository """
+  if not basedir:
+    basedir = os.getcwd()  # default current working directory
+  util.validate_basedir(basedir)
+
+  for key in repos:
+    name = repos[key]["name"]
+    dest = util.get_repo_dir(basedir, name)
+    osver = update_repos[key]["osver"]
+    arch = update_repos[key]["arch"]
+    stable = update_repos[key]["stable_release"]
+    repo_type = update_repos[key]["repo_type"]
+    url = update_repos[key]["url"]
+    repo.localsync(name, dest, osver, arch, repoversion, stable)
 
 def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], repodirs=[], repofiles=[],
          repoversion=None, delete=False, combined=False, callback=None):
