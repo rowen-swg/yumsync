@@ -1,3 +1,159 @@
+This is an Updated Version of Pakrat, Forked from the original By Ryan Uber:
+
+What this is:
+-------------
+  * This is an update to the pakrat libraries.
+
+What this supports:
+-------------------
+  * Building yum repos for Centos 5
+  * More Granular approach for building repositories.
+  * Creating Repositories for custom local RPMs (local repo creation)
+  * Stable Repo link as well as latest.
+
+What this does not support:
+---------------------------
+  * The original pakrat command line tool -- this is probably broken due to changes in the libraries
+  * Combined Repository metadata (I really dont get the point of this)
+
+Most of the changes made have been to:
+--------------------------------------
+  * pakrat/__init__.py
+  * pakrat/repo.py
+  * pakrat/util.py
+
+
+Example Usage:
+--------------
+
+For remote repositories:
+
+```
+for key in remoterepos:
+    name = remoterepos[key]["name"]
+    osver = remoterepos[key]["osver"]
+    arch = remoterepos[key]["arch"]
+    stable = remoterepos[key]["stable_release"]
+    repo_type = remoterepos[key]["repo_type"]
+    url = remoterepos[key]["url"]
+
+    repos.append(pakrat.repo.factory(name=name, baseurls=[url]))
+    arches.append(arch)
+    osvers.append(osver)
+    stable_list.append(stable)
+
+  mycallback_instance = mycallback()
+  pakrat.sync(objrepos=repos, basedir=basepath, repoarches=arches,
+              osvers=osvers, stableversion=stable_list,
+              callback=mycallback_instance, repoversion=datestamp)
+```
+
+For local repositories:
+
+```
+  mycallback_instance = mycallback()
+  pakrat.localsync(repos=localrepos, basedir=basepath,
+                   callback=mycallback_instance, repoversion=datestamp)
+
+```
+
+calling in the yaml python module, you should be able to send data through to pakrat in a structure similar to the example below:
+
+```
+basepath: "/var/www/repositories"
+
+repos:
+  repo-zabbix7:
+    name: "zabbix2.2"
+    url: "http://repo.zabbix.com/zabbix/2.2/rhel/7/x86_64"
+    arch: "x86_64"
+    osver: "centos7"
+    stable_release: "20150407"
+  repo-zabbix6:
+    name: "zabbix2.2"
+    url: "http://repo.zabbix.com/zabbix/2.2/rhel/7/x86_64"
+    arch: "x86_64"
+    osver: "centos6"
+    stable_release: "20150407"
+  repo-epel-el7-x86_64:
+    name: "epel"
+    url: "http://dl.fedoraproject.org/pub/epel/7/x86_64"
+    arch: "x86_64"
+    osver: "centos7"
+    stable_release: "20150408"
+  repo-custom-local-x86-64:
+    name: "custom-Other"
+    arch: "x86_64"
+    osver: "centos5"
+    stable_release: "20150422"
+    repo_type: "local"
+```
+
+How Pakrat creates repos now:
+
+For a remote repository, it works the same way, except, it sends it to the following path:
+
+```
+  $basepath/$name/$osver/$arch
+```
+
+  Taking Zabbix as Example:
+
+```
+/var/www/repositories/zabbix2.2:
+
+# tree -d
+.
+├── centos6
+│   ├── 20150407
+│   │   ├── repodata
+│   │   └── x86_64 -> ../x86_64
+│   ├── 20150408
+│   │   ├── repodata
+│   │   └── x86_64 -> ../x86_64
+│   ├── 20150413
+│   │   ├── repodata
+│   │   └── x86_64 -> ../x86_64
+│   ├── 20150420
+│   │   ├── repodata
+│   │   └── x86_64 -> ../x86_64
+│   ├── latest -> 20150420
+│   ├── stable -> 20150407
+│   └── x86_64
+└── centos7
+    ├── 20150407
+    │   ├── repodata
+    │   └── x86_64 -> ../x86_64
+    ├── 20150408
+    │   ├── repodata
+    │   └── x86_64 -> ../x86_64
+    ├── 20150413
+    │   ├── repodata
+    │   └── x86_64 -> ../x86_64
+    ├── 20150420
+    │   ├── repodata
+    │   └── x86_64 -> ../x86_64
+    ├── latest -> 20150420
+    ├── stable -> 20150407
+    └── x86_64
+
+```
+
+The local repository method works slightly differently it expects the rpms to be in the location, as it would be created using the remote method, so taking the custom-other repo as an exmaple it would expect the rpms to be in the following location:
+
+```
+/var/www/repositories/custom-other/centos5/x86_64/*.rpm
+
+```
+
+It will scan that directory for all of the rpms and then create the repo metadata and the latest and stable symlinks.
+
+If you wish to use this updated version and the instructions don't make sense, or you need help or would like to pass along improvements please get in contact with me.
+
+
+
+
+
 Pakrat
 -------
 
