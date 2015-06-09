@@ -1,15 +1,14 @@
-This is an Updated Version of Pakrat, Forked from the original By Ryan Uber:
 
 What this is:
 -------------
-  * This is an update to the pakrat libraries.
+  * This is an updated version of the pakrat libraries, forked from the original By Ryan Uber.
 
 What this supports:
 -------------------
   * Building yum repos for Centos 5
-  * More Granular approach for building repositories.
-  * Creating Repositories for custom local RPMs (local repo creation)
-  * Stable Repo link as well as latest.
+  * More descriptive approach to building repositories.
+  * Creating repositories for custom local rpms (local repo creation)
+  * Stable and Latest repo paths created -- stable linking to a known good repo date.
 
 What this does not support:
 ---------------------------
@@ -18,10 +17,20 @@ What this does not support:
 
 Most of the changes made have been to:
 --------------------------------------
+
+```
   * pakrat/__init__.py
   * pakrat/repo.py
   * pakrat/util.py
+```
 
+Known Issues:
+-------------
+
+This is quite hacky, it's been done for the reasons explained in the what this supports and it has a lot of room for improvement.
+It exposes issues with the underlying real-time progress indicator, which will display percentages incorrectly using the path structure used within this method and the progress indicator continuously seems to refresh on screeen causing massive output, which can all be improved. It most likely has broken the command line tool and combined repo method (neither of which have been tested).
+
+If you fork from this and make any improvements let me know and I will merge it into this version as well.
 
 Example Usage:
 --------------
@@ -97,7 +106,7 @@ For a remote repository, it works the same way, except, it sends it to the follo
   $basepath/$name/$osver/$arch
 ```
 
-  Taking Zabbix as Example:
+Taking zabbix from the yaml example above, the directory structure would be as follows:
 
 ```
 /var/www/repositories/zabbix2.2:
@@ -149,9 +158,6 @@ The local repository method works slightly differently it expects the rpms to be
 It will scan that directory for all of the rpms and then create the repo metadata and the latest and stable symlinks.
 
 If you wish to use this updated version and the instructions don't make sense, or you need help or would like to pass along improvements please get in contact with me.
-
-
-
 
 
 Pakrat
