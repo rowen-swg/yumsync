@@ -146,21 +146,13 @@ def localsync(name, dest, osver, arch, version, stableversion, link_type, delete
     packages_dir = util.get_ver_packages_dir(dest_dir,arch)
     if "symlink" == link_type:
       util.symlink(packages_dir, util.get_relative_packages_dir(arch))
-    elif "hardlink" === link_type:
+    elif "hardlink" == link_type:
       util.hardlink(packages_dir, util.get_relative_packages_dir(arch))
     else:
       raise Exception('%s unrecognised - should be either symlink or hardlink' % link_type)
   else:
     dest_dir = dest
     packages_dir = util.get_packages_dir(dest_dir,osver,arch)
-
-  except (KeyboardInterrupt, SystemExit):
-    pass
-  except Exception, e:
-    callback(repocallback, repo, 'repo_error', str(e))
-    log.error(str(e))
-    return False
-  callback(repocallback, repo, 'repo_complete')
 
   if delete:
     package_names = []
@@ -233,7 +225,7 @@ def sync(repo, dest, osver, arch, version, stableversion, link_type, delete=Fals
         packages_dir = util.get_ver_packages_dir(dest_dir,arch)
         if "symlink" == link_type:
           util.symlink(packages_dir, util.get_relative_packages_dir(arch))
-        elif "hardlink" === link_type:
+        elif "hardlink" == link_type:
           util.hardlink(packages_dir, util.get_relative_packages_dir(arch))
         else:
           raise Exception('%s unrecognised - should be either symlink or hardlink' % link_type)
