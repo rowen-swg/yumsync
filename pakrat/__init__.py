@@ -17,12 +17,14 @@ def localsync(repos={}, basedir=None, repoversion=None, link_type=None, callback
   for key in repos:
     name = repos[key]["name"]
     dest = util.get_repo_dir(basedir, name)
+    delete = remoterepos[key]["delete"]
     osver = repos[key]["osver"]
     arch = repos[key]["arch"]
     stable = repos[key]["stable_release"]
     repo_type = repos[key]["repo_type"]
     url = repos[key]["url"]
-    repo.localsync(name, dest, osver, arch, repoversion, stable, link_type)
+    link_type = remoterepos[key]["link_type"]
+    repo.localsync(name, dest, osver, arch, repoversion, stable, link_type, delete)
 
 def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], link_type=None, repodirs=[], repofiles=[],
          repoversion=None, delete=False, combined=False, callback=None):

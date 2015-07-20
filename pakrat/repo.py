@@ -135,7 +135,7 @@ def retrieve_group_comps(repo):
             log.debug('No group data available for repository %s' % repo.id)
             return None
 
-def localsync(name, dest, osver, arch, version, stableversion, link_type, repocallback=None):
+def localsync(name, dest, osver, arch, version, stableversion, link_type, delete, repocallback=None):
 
   """ Create Repo Metadata from Local package repo
       Also Versions the local repository """
@@ -153,6 +153,24 @@ def localsync(name, dest, osver, arch, version, stableversion, link_type, repoca
   else:
     dest_dir = dest
     packages_dir = util.get_packages_dir(dest_dir,osver,arch)
+
+  except (KeyboardInterrupt, SystemExit):
+    pass
+  except Exception, e:
+    callback(repocallback, repo, 'repo_error', str(e))
+    log.error(str(e))
+    return False
+  callback(repocallback, repo, 'repo_complete')
+
+  if delete:
+    package_names = []
+    for package in packages:
+      package_names.append(util.get_package_filename(package))
+    for _file in os.listdir(util.get_packages_dir(dest,osver,arch)):
+      if not _file in package_names:
+        package_path = util.get_package_path(dest, osver, arch, _file)
+        log.debug('Deleting file %s' % package_path)
+        os.remove(package_path)
 
   actual_package_path = util.get_packages_dir(dest,osver,arch)
   print "Creating / Syncing Local Repo ::",name
