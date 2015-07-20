@@ -193,7 +193,7 @@ def localsync(name, dest, osver, arch, version, stableversion, link_type, delete
 
   print "... Done \n"
 
-def sync(repo, dest, osver, arch, version, stableversion, link_type, delete=False, combined=False, yumcallback=None,
+def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, combined=False, yumcallback=None,
          repocallback=None):
     """ Sync repository contents from a remote source.
 

@@ -66,8 +66,8 @@ def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], 
         repocallback = progress.ProgressCallback(queue, callback)
         dest = util.get_repo_dir(basedir, objrepo.id)
         p = multiprocessing.Process(target=repo.sync, args=(objrepo, dest, osver, arch,
-                                    repoversion, stable, delete, combined, yumcallback,
-                                    link_type, repocallback))
+                                    repoversion, stable, link_type, delete, combined, yumcallback,
+                                    repocallback))
         p.start()
         processes.append(p)
 
