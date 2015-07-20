@@ -27,6 +27,7 @@ import yum
 from pakrat.yumbase import YumBase
 from pakrat import log
 
+RPMDIR = 'RPMs'
 METADATADIR = 'repodata'
 LATESTREPO = 'latest'
 STABLEREPO = 'stable'
@@ -45,19 +46,23 @@ def get_repo_dir(basedir, name):
 
 def get_packages_dir(repodir, osver, arch):
     """ Return the path to the packages directory of a repository. """
+    #return os.path.join(repodir, osver, arch, RPMDIR)
     return os.path.join(repodir, osver, arch )
 
 def get_ver_packages_dir(repodir, arch):
     """ Return the path to the versioned packages directory of a repository.
         This is used for symlinking  """
+    #return os.path.join(repodir, arch, RPMDIR )
     return os.path.join(repodir, arch )
 
 def get_package_path(repodir, osver, arch, packagename):
     """ Return the path to an individual package file. """
+    #return os.path.join(repodir, osver, arch, RPMDIR, packagename)
     return os.path.join(repodir, osver, arch, packagename)
 
 def get_relative_packages_dir(arch):
     """ Return the relative path to the packages directory. """
+    #return os.path.join('..', RPMDIR)
     return os.path.join('..', arch)
 
 def get_package_relativedir(packagename, arch):
@@ -66,6 +71,7 @@ def get_package_relativedir(packagename, arch):
     This is used during repository metadata creation so that fragments of the
     local filesystem layout are not found in the repository index.
     """
+    #return os.path.join(RPMDIR, packagename)
     return os.path.join(arch, packagename)
 
 def get_versioned_dir(repodir, osver, version):
@@ -199,3 +205,16 @@ def symlink(path, target):
     if not os.path.lexists(path):
         log.trace('Linking %s to %s' % (path, target))
         os.symlink(target, path)
+
+def hardlink(path, target):
+
+   " This method creates a hardlink ... "
+   if os.path.exists(path):
+     raise Exception('%s exists - Cannot create link' % path)
+   else:
+     dir = os.path.dirname(path)
+     if not os.path.exists(dir):
+       make_dir(dir)
+     log.trace('Linking %s to %s' % (path, target))
+     os.link(target, path)
+

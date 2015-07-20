@@ -5,9 +5,9 @@ import signal
 import urlparse
 from pakrat import util, log, repo, repos, progress
 
-__version__ = '0.6.0'
+__version__ = '0.7.0'
 
-def localsync(repos={}, basedir=None, repoversion=None, callback=None):
+def localsync(repos={}, basedir=None, repoversion=None, link_type=None, callback=None):
   """ Create Repo Metadata from Local package repo
       Also Versions the local repository """
   if not basedir:
@@ -22,9 +22,9 @@ def localsync(repos={}, basedir=None, repoversion=None, callback=None):
     stable = repos[key]["stable_release"]
     repo_type = repos[key]["repo_type"]
     url = repos[key]["url"]
-    repo.localsync(name, dest, osver, arch, repoversion, stable)
+    repo.localsync(name, dest, osver, arch, repoversion, stable, link_type)
 
-def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], repodirs=[], repofiles=[],
+def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], link_type=None, repodirs=[], repofiles=[],
          repoversion=None, delete=False, combined=False, callback=None):
     """ Mirror repositories with configuration data from multiple sources.
 
@@ -41,8 +41,9 @@ def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], 
 
     util.validate_basedir(basedir)
 
-    if repoversion:
-        delete = False  # versioned repos have nothing to delete
+    if "symlink" == link_type:
+      if repoversion:
+          delete = False  # versioned repos have nothing to delete
 
     for _file in repofiles:
         objrepos += repos.from_file(_file)
@@ -64,7 +65,7 @@ def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], 
         dest = util.get_repo_dir(basedir, objrepo.id)
         p = multiprocessing.Process(target=repo.sync, args=(objrepo, dest, osver, arch,
                                     repoversion, stable, delete, combined, yumcallback,
-                                    repocallback))
+                                    link_type, repocallback))
         p.start()
         processes.append(p)
 

@@ -135,7 +135,7 @@ def retrieve_group_comps(repo):
             log.debug('No group data available for repository %s' % repo.id)
             return None
 
-def localsync(name, dest, osver, arch, version, stableversion, repocallback=None):
+def localsync(name, dest, osver, arch, version, stableversion, link_type, repocallback=None):
 
   """ Create Repo Metadata from Local package repo
       Also Versions the local repository """
@@ -144,7 +144,12 @@ def localsync(name, dest, osver, arch, version, stableversion, repocallback=None
     dest_dir = util.get_versioned_dir(dest, osver, version)
     util.make_dir(dest_dir)
     packages_dir = util.get_ver_packages_dir(dest_dir,arch)
-    util.symlink(packages_dir, util.get_relative_packages_dir(arch))
+    if "symlink" == link_type:
+      util.symlink(packages_dir, util.get_relative_packages_dir(arch))
+    elif "hardlink" === link_type:
+      util.hardlink(packages_dir, util.get_relative_packages_dir(arch))
+    else:
+      raise Exception('%s unrecognised - should be either symlink or hardlink' % link_type)
   else:
     dest_dir = dest
     packages_dir = util.get_packages_dir(dest_dir,osver,arch)
@@ -178,7 +183,7 @@ def localsync(name, dest, osver, arch, version, stableversion, repocallback=None
 
   print "... Done \n"
 
-def sync(repo, dest, osver, arch, version, stableversion, delete=False, combined=False, yumcallback=None,
+def sync(repo, dest, osver, arch, version, stableversion, link_type, delete=False, combined=False, yumcallback=None,
          repocallback=None):
     """ Sync repository contents from a remote source.
 
@@ -208,7 +213,12 @@ def sync(repo, dest, osver, arch, version, stableversion, delete=False, combined
         dest_dir = util.get_versioned_dir(dest, osver, version)
         util.make_dir(dest_dir)
         packages_dir = util.get_ver_packages_dir(dest_dir,arch)
-        util.symlink(packages_dir, util.get_relative_packages_dir(arch))
+        if "symlink" == link_type:
+          util.symlink(packages_dir, util.get_relative_packages_dir(arch))
+        elif "hardlink" === link_type:
+          util.hardlink(packages_dir, util.get_relative_packages_dir(arch))
+        else:
+          raise Exception('%s unrecognised - should be either symlink or hardlink' % link_type)
     else:
         dest_dir = dest
         packages_dir = util.get_packages_dir(dest_dir,osver,arch)
@@ -281,10 +291,10 @@ def sync(repo, dest, osver, arch, version, stableversion, delete=False, combined
     log.info('Finished creating metadata for repository %s' % repo.id)
 
     if version:
-        latest_symlink = util.get_latest_symlink_path(dest, osver)
-        util.symlink(latest_symlink, version)
-        stable_symlink = util.get_stable_symlink_path(dest, osver)
-        util.symlink(stable_symlink, stableversion)
+      latest_symlink = util.get_latest_symlink_path(dest, osver)
+      util.symlink(latest_symlink, version)
+      stable_symlink = util.get_stable_symlink_path(dest, osver)
+      util.symlink(stable_symlink, stableversion)
 
 def callback(callback_obj, repo, event, data=None):
     """ Abstracts calling class callbacks.

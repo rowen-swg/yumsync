@@ -3,7 +3,7 @@
 
 name: pakrat
 summary: A Python library for mirroring and versioning YUM repositories -- modrepo version
-version: 0.6.0
+version: 0.7.0
 release: 1%{?dist}
 buildarch: noarch
 license: MIT
@@ -23,6 +23,7 @@ This updated version supports:
   * centos 5 builds should now work.
   * more refined directory structure.
   * Creates metadata for / syncs a local repo (or just a bunch of rpms in a local path)
+  * has ability to hardlink or symlink -- hardlinking use with rpm
 
 %prep
 %setup -n %{pakrat_dir}

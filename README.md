@@ -27,8 +27,10 @@ Most of the changes made have been to:
 Known Issues:
 -------------
 
-This is quite hacky, it's been done for the reasons explained in the what this supports and it has a lot of room for improvement.
-It exposes issues with the underlying real-time progress indicator, which will display percentages incorrectly using the path structure used within this method and the progress indicator continuously seems to refresh on screeen causing massive output, which can all be improved. It most likely has broken the command line tool and combined repo method (neither of which have been tested).
+There is a lot of room for improvement in the updates applied so far.
+the pakrat command line tool and combined repo method are broken in this version (neither of which have been tested).
+It exposes issues with the underlying real-time progress indicator, which will display percentages incorrectly using the updated path structure (because there can be multiple repos per path but the progress indicator doesnt take this into account )
+None of these effect the libraries and it all works as expected, hence why these have not yet been fixed.
 
 If you fork from this and make any improvements let me know and I will merge it into this version as well.
 
@@ -45,6 +47,7 @@ for key in remoterepos:
     stable = remoterepos[key]["stable_release"]
     repo_type = remoterepos[key]["repo_type"]
     url = remoterepos[key]["url"]
+    link_type = remoterepos[key]["link_type"]
 
     repos.append(pakrat.repo.factory(name=name, baseurls=[url]))
     arches.append(arch)
@@ -78,24 +81,28 @@ repos:
     arch: "x86_64"
     osver: "centos7"
     stable_release: "20150407"
+    link_type: "symlink"
   repo-zabbix6:
     name: "zabbix2.2"
     url: "http://repo.zabbix.com/zabbix/2.2/rhel/7/x86_64"
     arch: "x86_64"
     osver: "centos6"
     stable_release: "20150407"
+    link_type: "hardlink"
   repo-epel-el7-x86_64:
     name: "epel"
     url: "http://dl.fedoraproject.org/pub/epel/7/x86_64"
     arch: "x86_64"
     osver: "centos7"
     stable_release: "20150408"
+    link_type: "hardlink"
   repo-custom-local-x86-64:
     name: "custom-Other"
     arch: "x86_64"
     osver: "centos5"
     stable_release: "20150422"
     repo_type: "local"
+    link_type: "hardlink"
 ```
 
 How Pakrat creates repos now:
