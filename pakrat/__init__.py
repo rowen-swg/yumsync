@@ -5,7 +5,7 @@ import signal
 import urlparse
 from pakrat import util, log, repo, repos, progress
 
-__version__ = '0.7.0'
+__version__ = '0.7.1'
 
 def localsync(repos={}, basedir=None, repoversion=None, link_type=None, callback=None):
   """ Create Repo Metadata from Local package repo

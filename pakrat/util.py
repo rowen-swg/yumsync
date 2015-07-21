@@ -53,17 +53,25 @@ def get_ver_packages_dir(repodir, arch):
     """ Return the path to the versioned packages directory of a repository.
         This is used for symlinking  """
     #return os.path.join(repodir, arch, RPMDIR )
-    return os.path.join(repodir, arch )
+    return os.path.join(repodir, arch)
 
 def get_package_path(repodir, osver, arch, packagename):
     """ Return the path to an individual package file. """
     #return os.path.join(repodir, osver, arch, RPMDIR, packagename)
     return os.path.join(repodir, osver, arch, packagename)
 
+def get_target_path(repodir, osver, version, arch, packagename):
+    """ Return the target path for an individual package file. """
+    return os.path.join(repodir, osver, version, arch, packagename)
+
 def get_relative_packages_dir(arch):
     """ Return the relative path to the packages directory. """
     #return os.path.join('..', RPMDIR)
     return os.path.join('..', arch)
+
+def get_relative_packages(packagename, arch):
+    """ Return the relative path to the package """
+    return os.path.join('..', arch, packagename)
 
 def get_package_relativedir(packagename, arch):
     """ Return the relative path to an individual package file.
@@ -77,6 +85,10 @@ def get_package_relativedir(packagename, arch):
 def get_versioned_dir(repodir, osver, version):
     """ Return the path to a specific version of a repository. """
     return os.path.join(repodir, osver, version)
+
+def get_full_versioned_dir(repodir, osver, version, arch):
+    """ Return the path to a specific version of a repository. """
+    return os.path.join(repodir, osver, version, arch)
 
 def get_latest_symlink_path(repodir, osver):
     """ Return the path to the latest repository directory.
@@ -209,12 +221,18 @@ def symlink(path, target):
 def hardlink(path, target):
 
    " This method creates a hardlink ... "
-   if os.path.exists(path):
-     raise Exception('%s exists - Cannot create link' % path)
+   dir_link = os.path.dirname(path)
+   target_link = os.path.dirname(target)
+   #print "Linking ", path, "to ", target
+   if not os.path.exists(dir_link):
+     make_dir(dir_link)
+   if not os.path.exists(target_link):
+     make_dir(target_link)
+   log.trace('Linking %s to %s' % (path, target))
+
+   if not os.path.exists(target):
+     os.link(path, target)
    else:
-     dir = os.path.dirname(path)
-     if not os.path.exists(dir):
-       make_dir(dir)
-     log.trace('Linking %s to %s' % (path, target))
-     os.link(target, path)
+     log.trace('Skipping %s -- it exists already' % (target))
+     print "Skipping ", target, " -- it exists already ::: \n"
 
