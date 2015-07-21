@@ -17,17 +17,17 @@ def localsync(repos={}, basedir=None, repoversion=None, link_type=None, callback
   for key in repos:
     name = repos[key]["name"]
     dest = util.get_repo_dir(basedir, name)
-    delete = remoterepos[key]["delete"]
+    delete = repos[key]["delete"]
     osver = repos[key]["osver"]
     arch = repos[key]["arch"]
     stable = repos[key]["stable_release"]
     repo_type = repos[key]["repo_type"]
     url = repos[key]["url"]
-    link_type = remoterepos[key]["link_type"]
+    link_type = repos[key]["link_type"]
     repo.localsync(name, dest, osver, arch, repoversion, stable, link_type, delete)
 
-def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], link_type=None, repodirs=[], repofiles=[],
-         repoversion=None, delete=False, combined=False, callback=None):
+def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], link_types=[], repodirs=[], repofiles=[],
+         repoversion=None, delete_stats=[], combined=False, callback=None):
     """ Mirror repositories with configuration data from multiple sources.
 
     Handles all input validation and higher-level logic before passing control
@@ -43,10 +43,6 @@ def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], 
 
     util.validate_basedir(basedir)
 
-    if "symlink" == link_type:
-      if repoversion:
-          delete = False  # versioned repos have nothing to delete
-
     for _file in repofiles:
         objrepos += repos.from_file(_file)
 
@@ -61,6 +57,10 @@ def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], 
         arch = repoarches.pop(0)
         osver = osvers.pop(0)
         stable = stableversion.pop(0)
+        delete = delete_stats.pop(0)
+        link_type = link_types.pop(0)
+        if "symlink" == link_type:
+          delete = False  # versioned symlinked repos should not be deleted
         prog.update(objrepo.id)  # Add the repo to the progress object
         yumcallback = progress.YumProgress(objrepo.id, queue, callback)
         repocallback = progress.ProgressCallback(queue, callback)

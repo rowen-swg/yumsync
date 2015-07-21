@@ -234,5 +234,5 @@ def hardlink(path, target):
      os.link(path, target)
    else:
      log.trace('Skipping %s -- it exists already' % (target))
-     print "Skipping ", target, " -- it exists already ::: \n"
+     #print "Skipping ", target, " -- it exists already ::: \n"
 
