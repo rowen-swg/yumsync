@@ -146,10 +146,10 @@ def localsync(name, dest, osver, arch, version, stableversion, link_type, delete
     packages_dir = util.get_ver_packages_dir(dest_dir,arch)
     if "symlink" == link_type:
       util.symlink(packages_dir, util.get_relative_packages_dir(arch))
-    elif "hardlink" == link_type:
-      util.hardlink(packages_dir, util.get_relative_packages_dir(arch))
     else:
-      raise Exception('%s unrecognised - should be either symlink or hardlink' % link_type)
+      dest_dir = util.get_repo_dir(dest, osver)
+      util.make_dir(dest_dir)
+      packages_dir = util.get_ver_packages_dir(dest_dir,arch)
   else:
     dest_dir = dest
     packages_dir = util.get_packages_dir(dest_dir,osver,arch)
@@ -176,10 +176,15 @@ def localsync(name, dest, osver, arch, version, stableversion, link_type, delete
   log.info('Creating metadata for repository %s' % name)
   pkglist = []
   for pkg in packages:
+    #print "full package path = ", util.get_package_path(dest, osver, arch, pkg)
     pkglist.append(
-      #util.get_package_relativedir(util.get_package_filename(pkg),arch)
       util.get_package_relativedir(pkg,arch)
     )
+    if "hardlink" == link_type:
+      original_file = util.get_package_path(dest, osver, arch, pkg)
+      target_file = util.get_target_path(dest, osver, version, arch, pkg)
+      #print "linking file = ", original_file, "to destination =", target_file
+      util.hardlink(original_file, target_file)
 
   create_localmetadata(pkgdir=packages_dir, packages=pkglist, osver=osver)
 
