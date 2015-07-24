@@ -300,6 +300,7 @@ def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, com
           target_file = util.get_target_path(dest, osver, version, arch, util.get_package_filename(pkg))
           #print "linking file = ", original_file, "to destination =", target_file
           util.hardlink(original_file, target_file)
+          repo = set_path(repo, util.get_full_versioned_dir(dest, osver, version, arch))
 
     create_metadata(repo, pkglist, comps, osver)
     if combined and version:

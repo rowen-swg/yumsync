@@ -23,7 +23,7 @@ required_module('yum')
 required_module('createrepo')
 
 setup(name='pakrat',
-    version='0.7.2',
+    version='0.7.2.1',
     description='A tool for mirroring and versioning YUM repositories -- Modrepo version',
     author='Ryan Uber',
     author_email='ru@ryanuber.com',
