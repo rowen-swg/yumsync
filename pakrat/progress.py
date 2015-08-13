@@ -29,7 +29,7 @@ class Progress(object):
       """ destructor - need to reset the terminal ."""
 
       print self.term.move(self.term.height,20)
-      print self.term.bright_green + ".............. External Repository Processing Done ............." + self.term.normal
+      print self.term.green + ".............. External Repository Processing Done ............." + self.term.normal
       sys.stdout.flush()
 
     def update(self, repo_id, set_total=None, pkgs_downloaded=None,
@@ -184,10 +184,10 @@ class Progress(object):
                     self.repos[repo_id]['error'] = True
 
         for repo_id in self.repos.keys():
-            self.emit(self.represent_repo(repo_id),"bright_blue")
+            self.emit(self.represent_repo(repo_id),"blue")
         self.emit()
         self.emit(self.format_line('total:', self.represent_total_pkgs(),
-                                   self.represent_total_percent(), ''),"bright_yellow")
+                                   self.represent_total_percent(), ''),"yellow")
         self.emit()
 
         # Append errors to output if any found.
