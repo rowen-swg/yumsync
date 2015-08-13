@@ -1,5 +1,6 @@
 import sys
 import datetime
+from blessings import Terminal
 
 class Progress(object):
     """ Handle progress indication using callbacks.
@@ -13,11 +14,23 @@ class Progress(object):
     repos = {}
     totals = {'numpkgs':0, 'dlpkgs':0, 'errors':0}
     errors = []
-    prevlines = 0
 
     def __init__(self):
-        """ Simply records the time the sync started. """
-        self.start = datetime.datetime.now()
+      """ records the time the sync started.
+          and initialise blessings terminal """
+      self.start = datetime.datetime.now()
+      self.prevlines = 0
+      self.term = Terminal()
+      print self.term.clear()
+      height = self.term.height
+      width = self.term.width
+
+    def __del__(self):
+      """ destructor - need to reset the terminal ."""
+
+      print self.term.move(self.term.height,20)
+      print self.term.bright_green + ".............. External Repository Processing Done ............." + self.term.normal
+      sys.stdout.flush()
 
     def update(self, repo_id, set_total=None, pkgs_downloaded=None,
                local_pkg_exists=None, repo_metadata=None, repo_error=None):
@@ -130,16 +143,21 @@ class Progress(object):
             metadata = self.represent_repomd(repo_id)
         return self.format_line(repo_id, packages, percent, metadata)
 
-    def emit(self, line=''):
+    def emit(self, line='', color=''):
+        with self.term.location(y=self.prevlines):
+          if (color):
+            coloured_line=getattr(self.term, color)
+            print coloured_line+line
+          else:
+            sys.stdout.write('%s\n' % line)
         self.prevlines += len(line.split('\n'))
-        sys.stdout.write('%s\n' % line)
 
     def formatted(self):
         """ Print all known progress data in a nicely formatted table.
 
         This method keeps track of what it has printed before, so that it can
         backtrack over the console screen, clearing out the previous flush and
-        printing out a new one. This method is called any time any value is
+        rinting out a new one. This method is called any time any value is
         updated, which is what gives us that real-time feeling.
 
         Unforutnately, the YUM library calls print directly rather than just
@@ -149,12 +167,12 @@ class Progress(object):
         """
         if not sys.stdout.isatty():
             return
-        sys.stdout.write('\033[F\033[K' * self.prevlines)  # clears lines
-        self.prevlines = 0  # reset line counter
+
+        self.prevlines = 2  # reset line counter
         header = self.format_line('repo', '%5s/%-10s' % ('done', 'total'),
                                   'complete', 'metadata')
-        self.emit('\n%s' % header)
-        self.emit(('-' * len(header)))
+        self.emit('\n%s' % header, "green")
+        self.emit(('-' * len(header)), "bright_green")
 
         # Remove repos with errors from totals
         if self.totals['errors'] > 0:
@@ -166,17 +184,17 @@ class Progress(object):
                     self.repos[repo_id]['error'] = True
 
         for repo_id in self.repos.keys():
-            self.emit(self.represent_repo(repo_id))
+            self.emit(self.represent_repo(repo_id),"bright_blue")
         self.emit()
         self.emit(self.format_line('total:', self.represent_total_pkgs(),
-                                   self.represent_total_percent(), ''))
+                                   self.represent_total_percent(), ''),"bright_yellow")
         self.emit()
 
         # Append errors to output if any found.
         if self.totals['errors'] > 0:
-            self.emit('errors(%d):' % self.totals['errors'])
+            self.emit('errors(%d):' % self.totals['errors'],"red")
             for repo_id, error in self.errors:
-                self.emit(error)
+                self.emit(error,"red")
             self.emit()
 
         sys.stdout.flush()
@@ -265,7 +283,7 @@ class ProgressCallback(object):
         which is mandatory to do aggregated progress indication. This method
         also calls the user callback, if any is defined.
         """
-        self.queue.put({'repo_id':repo_id, 'action': action, 
+        self.queue.put({'repo_id':repo_id, 'action': action,
                         'value':value})
         self.callback(repo_id, action, value)
 

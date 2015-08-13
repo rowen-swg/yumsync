@@ -3,13 +3,13 @@
 
 name: pakrat
 summary: A Python library for mirroring and versioning YUM repositories -- modrepo version
-version: 0.7.2.1
+version: 0.8
 release: 1%{?dist}
 buildarch: noarch
 license: MIT
 source0: %{name}.tar.gz
 buildrequires: yum, createrepo, python-setuptools-devel
-requires: yum, createrepo
+requires: yum, createrepo, python-blessings, PyYAML, pyliblzma
 
 %description
 Pakrat is a Pythonic library used to mirror YUM repositories using
