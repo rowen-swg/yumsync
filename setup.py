@@ -21,14 +21,17 @@ def required_module(module):
 
 required_module('yum')
 required_module('createrepo')
+required_module('python-blessings')
+required_module('PyYAML')
+required_module('pyliblzma')
 
 setup(name='pakrat',
-    version='0.8',
-    description='A tool for mirroring and versioning YUM repositories -- Modrepo version',
-    author='Ryan Uber',
-    author_email='ru@ryanuber.com',
-    url='https://github.com/ryanuber/pakrat',
+    version='0.9',
+    description='A tool for mirroring and versioning YUM repositories -- reposync version',
+    author='Ryan Uber & Vamegh Hedayati',
+    author_email='ru@ryanuber.com / repo@ev9.io',
+    url='https://github.com/vamegh/pakrat',
     packages=['pakrat'],
-    scripts=['bin/pakrat'],
+    scripts=['bin/pakrat','bin/reposync'],
     package_data={'pakrat': ['LICENSE', 'README.md']}
 )

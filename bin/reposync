@@ -1,0 +1,185 @@
+#!/usr/bin/python
+#
+#  reposync : versioned yum repositories
+#  pakrat originally developed by Ryan Uber
+#  reposync vamegh hedayati 2015
+
+import os
+import sys
+import datetime
+import pakrat
+import yaml
+from optparse import OptionParser
+
+parser = OptionParser(version='pakrat / reposync v%s' % pakrat.__version__,
+    usage='\n'.join([
+        'reposync [options]\n',
+        'Repositories are read in from a yaml config default is repos.yaml',
+        'the all or name options should be specified to update repositories',
+        'the name option can be repeated several times to update multiple repos',
+        'the show option will display all available repo names that can be called.'
+    ]))
+parser.add_option('-c', '--config', action='store', default="repos.yaml",
+    help='Provide a custom configuration file, defaults to repos.yaml if none provided')
+parser.add_option('-a', '--all', action='store_true',
+    help='all of the repositories listed in the config file will be updated - either this or the name option must be specified')
+parser.add_option('-n', '--name', action='append',
+    help='The name of a YUM repository as contained within the config (repeatable) either this or the all option must be specified')
+parser.add_option('-s', '--show', action="store_true",
+    help='Display all available YUM repositories as contained within the config')
+
+def check_cmd(**rawrepo):
+
+  update_repos = {}
+  update_repos["repos"] = {}
+
+  if options.show:
+    for repo in list(rawrepo["repos"].keys()):
+      print repo
+    sys.exit(1)
+
+  if options.all:
+    update_repos = rawrepo
+  elif options.name:
+    for name in (options.name):
+      if name in list(rawrepo["repos"].keys()):
+        update_repos['repos'][name] = rawrepo['repos'][name]
+  else:
+    parser.print_help()
+    sys.exit(1)
+
+  return update_repos["repos"]
+
+def scan_yaml(**rawrepo):
+  local_repos = {}
+  remote_repos = {}
+  for key in rawrepo:
+    try:
+      repo_type = rawrepo[key]["repo_type"]
+    except KeyError as e:
+      new_key = e.args[0]
+      rawrepo[key][new_key] = "none"
+      #print new_key,"has now been set to ",rawrepo[key][new_key]," :: for key ",key," :: previously unset"
+    try:
+      link_type = rawrepo[key]["link_type"]
+    except KeyError as e:
+      new_key = e.args[0]
+      rawrepo[key][new_key] = "symlink"
+      #print new_key,"has now been set to ",rawrepo[key][new_key]," :: for key ",key," :: previously unset"
+    try:
+      delete = rawrepo[key]["delete"]
+    except KeyError as e:
+      new_key = e.args[0]
+      rawrepo[key][new_key] = "false"
+      #print new_key,"has now been set to ",rawrepo[key][new_key]," :: for key ",key," :: previously unset"
+    try:
+      name = rawrepo[key]["name"]
+    except KeyError as e:
+      new_key = e.args[0]
+      rawrepo[key][new_key] = "none"
+      #print new_key,"has now been set to ",rawrepo[key][new_key]," :: for key ",key," :: previously unset"
+    try:
+      url = rawrepo[key]["url"]
+    except KeyError as e:
+      new_key = e.args[0]
+      rawrepo[key][new_key] = "none"
+      #print new_key,"has now been set to ",rawrepo[key][new_key]," :: for key ",key," :: previously unset"
+    try:
+      arch = rawrepo[key]["arch"]
+    except KeyError as e:
+      new_key = e.args[0]
+      rawrepo[key][new_key] = "none"
+      #print new_key,"has now been set to ",rawrepo[key][new_key]," :: for key ",key," :: previously unset"
+    try:
+      osver = rawrepo[key]["osver"]
+    except KeyError as e:
+      new_key = e.args[0]
+      rawrepo[key][new_key] = "none"
+      #print new_key,"has now been set to ",rawrepo[key][new_key]," :: for key ",key," :: previously unset"
+    try:
+      stable = rawrepo[key]["stable_release"]
+    except KeyError as e:
+      new_key = e.args[0]
+      rawrepo[key][new_key] = "none"
+      #print new_key,"has now been set to ",rawrepo[key][new_key]," :: for key ",key," :: previously unset"
+    if "local" == rawrepo[key]["repo_type"]:
+      local_repos[key] = rawrepo[key]
+    else:
+      remote_repos[key] = rawrepo[key]
+  return local_repos,remote_repos
+
+def handle_remote(remoterepos={}, basepath=None):
+  # used for version
+  datestamp = datetime.datetime.now().strftime("%Y%m%d")
+
+  ## initialise the various arrays
+  repos = []
+  arches = []
+  osvers = []
+  stable_list = []
+  link_types = []
+  delete_stats = []
+
+  # Create callbacks and logging
+  class mycallback(object):
+    def log(self, msg):
+      with open('/var/log/reposync.log', 'a') as logfile:
+        logfile.write('%s\n' % msg)
+
+    def repo_init(self, repo_id, num_pkgs):
+      self.log('Found %d packages in repo %s' % (num_pkgs, repo_id))
+
+    def download_start(self, repo_id, _file, url, basename, size, text):
+      self.fname = basename
+
+    def download_end(self, repo_id, size):
+      if self.fname.endswith('.rpm'):
+        self.log('%s, repo %s, size %d' % (self.fname, repo_id, size))
+
+    def repo_metadata(self, repo_id, status):
+      self.log('Metadata for repo %s is now %s' % (repo_id, status))
+
+  for key in remoterepos:
+    name = remoterepos[key]["name"]
+    osver = remoterepos[key]["osver"]
+    arch = remoterepos[key]["arch"]
+    delete = remoterepos[key]["delete"]
+    stable = remoterepos[key]["stable_release"]
+    repo_type = remoterepos[key]["repo_type"]
+    link_type = remoterepos[key]["link_type"]
+    url = remoterepos[key]["url"]
+
+    repo_name = osver+"_"+arch+"_"+name
+    repos.append(pakrat.repo.factory(name=repo_name, baseurls=[url]))
+    arches.append(arch)
+    osvers.append(osver)
+    stable_list.append(stable)
+    link_types.append(link_type)
+    delete_stats.append(delete)
+
+  mycallback_instance = mycallback()
+  pakrat.sync(objrepos=repos, basedir=basepath, repoarches=arches,
+              osvers=osvers, stableversion=stable_list, link_types=link_types, delete_stats=delete_stats,
+              callback=mycallback_instance, repoversion=datestamp)
+
+def handle_local(localrepos={}, basepath=None):
+  # used for version
+  datestamp = datetime.datetime.now().strftime("%Y%m%d")
+  pakrat.localsync(repos=localrepos, basedir=basepath,
+                   repoversion=datestamp)
+
+options, args = parser.parse_args()
+
+with open(options.config, "r") as repoyml:
+  repocfg = yaml.safe_load(repoyml)
+
+## Set the basepath or basedir from the yaml configuration file.
+basepath=repocfg['basepath']
+
+reposrun = check_cmd(**repocfg)
+
+local_repos,remote_repos = scan_yaml(**reposrun)
+
+handle_remote(remoterepos=remote_repos, basepath=basepath)
+handle_local(localrepos=local_repos, basepath=basepath)
+

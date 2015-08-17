@@ -20,16 +20,18 @@ class Progress(object):
           and initialise blessings terminal """
       self.start = datetime.datetime.now()
       self.prevlines = 0
+      self.linecount = 0
       self.term = Terminal()
+      self.height = self.term.height
+      self.width = self.term.width
+      self.mid = self.term.height / 2
       print self.term.clear()
-      height = self.term.height
-      width = self.term.width
 
     def __del__(self):
       """ destructor - need to reset the terminal ."""
 
-      print self.term.move(self.term.height,20)
-      print self.term.green + ".............. External Repository Processing Done ............." + self.term.normal
+      print self.term.normal
+      print self.term.move(self.linecount,0)
       sys.stdout.flush()
 
     def update(self, repo_id, set_total=None, pkgs_downloaded=None,
@@ -144,12 +146,13 @@ class Progress(object):
         return self.format_line(repo_id, packages, percent, metadata)
 
     def emit(self, line='', color=''):
-        with self.term.location(y=self.prevlines):
+        with self.term.location(0,self.prevlines):
+          coloured_line=''
           if (color):
             coloured_line=getattr(self.term, color)
-            print coloured_line+line
-          else:
-            sys.stdout.write('%s\n' % line)
+          sys.stdout.write('%s\n' % coloured_line+line)
+          print self.term.clear_eol()
+
         self.prevlines += len(line.split('\n'))
 
     def formatted(self):
@@ -168,11 +171,13 @@ class Progress(object):
         if not sys.stdout.isatty():
             return
 
-        self.prevlines = 2  # reset line counter
-        header = self.format_line('repo', '%5s/%-10s' % ('done', 'total'),
+        self.prevlines = 1  # reset line counter
+        self.linecount = 3  # reset line counter
+        header = self.format_line('repo', '%12s/%-8s' % ('done', 'total'),
                                   'complete', 'metadata')
         self.emit('\n%s' % header, "green")
         self.emit(('-' * len(header)), "bright_green")
+        self.linecount += 2
 
         # Remove repos with errors from totals
         if self.totals['errors'] > 0:
@@ -185,19 +190,24 @@ class Progress(object):
 
         for repo_id in self.repos.keys():
             self.emit(self.represent_repo(repo_id),"blue")
+            self.linecount += 1
+
+        self.emit(('-' * len(header)), "bright_green")
         self.emit()
         self.emit(self.format_line('total:', self.represent_total_pkgs(),
                                    self.represent_total_percent(), ''),"yellow")
+        self.emit(('-' * len(header)), "yellow")
         self.emit()
+        self.linecount += 5
 
         # Append errors to output if any found.
         if self.totals['errors'] > 0:
             self.emit('errors(%d):' % self.totals['errors'],"red")
             for repo_id, error in self.errors:
                 self.emit(error,"red")
+                self.linecount += 1
             self.emit()
-
-        sys.stdout.flush()
+            self.linecount += 2
 
 class YumProgress(object):
     """ Creates an object for passing to YUM for status updates.

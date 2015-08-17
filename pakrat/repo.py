@@ -165,8 +165,16 @@ def localsync(name, dest, osver, arch, version, stableversion, link_type, delete
         os.remove(package_path)
 
   actual_package_path = util.get_packages_dir(dest,osver,arch)
-  print "Creating / Syncing Local Repo ::",name
-  print "Scanning packages in ::",actual_package_path
+  uniq_repo_id = osver+"-"+arch+"-"+name
+  path_stat='good'
+  print ('Syncing Local Repo :: %s' % (uniq_repo_id))
+  if not os.path.exists(actual_package_path):
+    util.make_dir(actual_package_path)
+    print ('%s did not exist, created for you' % (actual_package_path))
+    print ('Please add all packages you require for repo %s, in path %s\n' % (name, actual_package_path))
+    path_stat='none'
+  else:
+    sys.stdout.write('Scanning packages in :: %s' % (actual_package_path))
 
   packages=[]
   log.info('Adding all Packages in repo path %s' % packages_dir)
@@ -176,14 +184,12 @@ def localsync(name, dest, osver, arch, version, stableversion, link_type, delete
   log.info('Creating metadata for repository %s' % name)
   pkglist = []
   for pkg in packages:
-    #print "full package path = ", util.get_package_path(dest, osver, arch, pkg)
     pkglist.append(
       util.get_package_relativedir(pkg,arch)
     )
     if "hardlink" == link_type:
       original_file = util.get_package_path(dest, osver, arch, pkg)
       target_file = util.get_target_path(dest, osver, version, arch, pkg)
-      #print "linking file = ", original_file, "to destination =", target_file
       util.hardlink(original_file, target_file)
 
   create_localmetadata(pkgdir=packages_dir, packages=pkglist, osver=osver)
@@ -196,7 +202,8 @@ def localsync(name, dest, osver, arch, version, stableversion, link_type, delete
     stable_symlink = util.get_stable_symlink_path(dest, osver)
     util.symlink(stable_symlink, stableversion)
 
-  print "... Done \n"
+  if path_stat == 'good':
+    print " ... Done \n"
 
 def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, combined=False, yumcallback=None,
          repocallback=None):

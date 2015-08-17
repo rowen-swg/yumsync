@@ -41,6 +41,7 @@ rm -rf %{buildroot}
 %defattr(-,root,root,-)
 %{python_sitelib}/%{name}*
 %attr(0755, root, root) %{_bindir}/%{name}
+%attr(0755, root, root) %{_bindir}/reposync
 
 %changelog
 * %(date "+%a %b %d %Y") %{name} - %{version}-%{release}
