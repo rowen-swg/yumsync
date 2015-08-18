@@ -1,7 +1,7 @@
 
 What this is:
 -------------
-  * This is an updated version of the pakrat libraries and pakrat cli tool, forked from the original By Ryan Uber.
+  * This is an updated version of the pakrat libraries, forked from the original By Ryan Uber.
 
 What this supports:
 -------------------
@@ -48,7 +48,8 @@ sync-repo is a command line tool for synchronising remote yum repositories and c
 repsync usage is as follows:
 
 
-``` ./sync-repo -c ../config/repos.yaml
+``` 
+./sync-repo -c ../config/repos.yaml
 
 Usage: sync-repo [options]
 
@@ -215,8 +216,8 @@ Taking zabbix from the yaml example above, the directory structure would be as f
 ```
 
 
-OLD INSTRUCTIONS (NOT REALLY APPLICABLE NOW)
---------------------------------------------
+ORIGINAL INSTRUCTIONS
+----------------------
 
 Pakrat
 -------
