@@ -21,18 +21,20 @@ class Progress(object):
       self.start = datetime.datetime.now()
       self.prevlines = 0
       self.linecount = 0
-      self.term = Terminal()
-      self.height = self.term.height
-      self.width = self.term.width
-      self.mid = self.term.height / 2
-      print self.term.clear()
+      if sys.stdout.isatty():
+        self.term = Terminal()
+        self.height = self.term.height
+        self.width = self.term.width
+        self.mid = self.term.height / 2
+        print self.term.clear()
 
     def __del__(self):
       """ destructor - need to reset the terminal ."""
 
-      print self.term.normal
-      print self.term.move(self.linecount,0)
-      sys.stdout.flush()
+      if sys.stdout.isatty():
+        print self.term.normal
+        print self.term.move(self.linecount,0)
+        sys.stdout.flush()
 
     def update(self, repo_id, set_total=None, pkgs_downloaded=None,
                local_pkg_exists=None, repo_metadata=None, repo_error=None):

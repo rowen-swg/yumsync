@@ -13,6 +13,7 @@ from optparse import OptionParser
 
 parser = OptionParser(version='pakrat / sync-repo v%s' % pakrat.__version__,
     usage='\n'.join([
+        '* sync-repo must be run as root *\n\n',
         'sync-repo [options]\n',
         'Repositories are read in from a yaml config default is /etc/sync-repo/repos.yaml',
         'the all or name options should be specified to update repositories',
@@ -173,6 +174,23 @@ def handle_local(localrepos={}, basepath=None):
   datestamp = datetime.datetime.now().strftime("%Y%m%d")
   pakrat.localsync(repos=localrepos, basedir=basepath,
                    repoversion=datestamp)
+
+if os.geteuid() != 0:
+  parser.print_help()
+  sys.exit(1)
+
+## from stackoverflow (http://stackoverflow.com/questions/380870/python-single-instance-of-program/1265445#1265445)
+### Linux specific -- but this has to be run on linux and specifically on redhat / rpm based distributions.
+try:
+  import socket
+  s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+  ## Create an abstract socket, by prefixing it with null.
+  s.bind( '\0postconnect_gateway_notify_lock')
+except socket.error, e:
+  error_code = e.args[0]
+  error_string = e.args[1]
+  print "Process already running (%d:%s ). Exiting" % ( error_code, error_string)
+  sys.exit (0)
 
 options, args = parser.parse_args()
 

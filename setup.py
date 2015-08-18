@@ -26,7 +26,7 @@ required_module('createrepo')
 #required_module('pyliblzma')
 
 setup(name='pakrat',
-    version='0.9',
+    version='0.9.5',
     description='A tool for mirroring and versioning YUM repositories -- sync-repo version',
     author='Ryan Uber & Vamegh Hedayati',
     author_email='ru@ryanuber.com / repo@ev9.io',

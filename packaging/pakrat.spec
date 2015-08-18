@@ -3,7 +3,7 @@
 
 name: pakrat
 summary: A Python library for mirroring and versioning YUM repositories -- modrepo version
-version: 0.9
+version: 0.9.5
 release: 1%{?dist}
 buildarch: noarch
 license: MIT
