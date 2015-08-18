@@ -13,8 +13,8 @@ from optparse import OptionParser
 
 parser = OptionParser(version='pakrat / sync-repo v%s' % pakrat.__version__,
     usage='\n'.join([
-        '* sync-repo must be run as root *\n\n',
         'sync-repo [options]\n',
+        '\n* sync-repo must be run as root *\n',
         'Repositories are read in from a yaml config default is /etc/sync-repo/repos.yaml',
         'the all or name options should be specified to update repositories',
         'the name option can be repeated several times to update multiple repos',
@@ -176,8 +176,8 @@ def handle_local(localrepos={}, basepath=None):
                    repoversion=datestamp)
 
 if os.geteuid() != 0:
-  parser.print_help()
-  sys.exit(1)
+  print "Please run sync-repo as root\n"
+  sys.exit (0)
 
 ## from stackoverflow (http://stackoverflow.com/questions/380870/python-single-instance-of-program/1265445#1265445)
 ### Linux specific -- but this has to be run on linux and specifically on redhat / rpm based distributions.
@@ -189,7 +189,7 @@ try:
 except socket.error, e:
   error_code = e.args[0]
   error_string = e.args[1]
-  print "Process already running (%d:%s ). Exiting" % ( error_code, error_string)
+  print "Sync-repo is already running (%d:%s ). Please wait for the current running process to finish before running again." % ( error_code, error_string)
   sys.exit (0)
 
 options, args = parser.parse_args()
