@@ -3,7 +3,7 @@
 
 name: pakrat
 summary: A Python library for mirroring and versioning YUM repositories -- modrepo version
-version: 0.8
+version: 0.9
 release: 1%{?dist}
 buildarch: noarch
 license: MIT
@@ -40,8 +40,11 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %{python_sitelib}/%{name}*
-%attr(0755, root, root) %{_bindir}/%{name}
 %attr(0755, root, root) %{_bindir}/reposync
+%attr(0755, root, root) %{_bindir}/reposync
+%config /etc/reposync/repos.yaml
+%config /etc/reposync/COPYING
+%config /etc/reposync/README.md
 
 %changelog
 * %(date "+%a %b %d %Y") %{name} - %{version}-%{release}

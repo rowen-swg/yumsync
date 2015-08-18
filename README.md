@@ -1,7 +1,7 @@
 
 What this is:
 -------------
-  * This is an updated version of the pakrat libraries, forked from the original By Ryan Uber.
+  * This is an updated version of the pakrat libraries and pakrat cli tool, forked from the original By Ryan Uber.
 
 What this supports:
 -------------------
@@ -9,11 +9,14 @@ What this supports:
   * More descriptive approach to building repositories.
   * Creating repositories for custom local rpms (local repo creation)
   * Stable and Latest repo paths created -- stable linking to a known good repo date.
+  * hard linking / symlinking paths -- this allows to maintain repository state by deleting files as hardlinks maintain deleted files
+  * output formatting in colour and handled by the blessings library - real time progress indicator seems to be working properly now.
+  * new command line tool called reposync.
 
 What this does not support:
 ---------------------------
-  * The original pakrat command line tool -- this is probably broken due to changes in the libraries
-  * Combined Repository metadata (I really dont get the point of this)
+  * The original pakrat command line tool - this has now been replaced with reposync.
+  * Combined Repository metadata
 
 Most of the changes made have been to:
 --------------------------------------
@@ -22,90 +25,146 @@ Most of the changes made have been to:
   * pakrat/__init__.py
   * pakrat/repo.py
   * pakrat/util.py
+  * bin/reposync (pakrat cli no longer exists)
 ```
 
 Known Issues:
 -------------
 
-There is a lot of room for improvement in the updates applied so far.
-the pakrat command line tool and combined repo method are broken in this version (neither of which have been tested).
-It exposes issues with the underlying real-time progress indicator, which will display percentages incorrectly using the updated path structure (because there can be multiple repos per path but the progress indicator doesnt take this into account )
-None of these effect the libraries and it all works as expected, hence why these have not yet been fixed.
-
+There is a lot of room for improvement in the updates applied so far,
+centos5 mapping is a bit pants, the repo osver has to be marked as centos5 or 5 for it to use sha hashing.
 If you fork from this and make any improvements let me know and I will merge it into this version as well.
 
-Example Usage:
---------------
+Reposync Usage:
+------
 
-For remote repositories:
+## Introduction
+
+reposync is a command line tool for synchronising remote yum repositories and creating new local yum repositories.
+
+
+## Usage
+
+repsync usage is as follows:
+
+
+``` ./reposync -c ../config/repos.yaml
+
+Usage: reposync [options]
+
+Repositories are read in from a yaml config default is /etc/reposync/repos.yaml
+the all or name options should be specified to update repositories
+the name option can be repeated several times to update multiple repos
+the show option will display all available repo names that can be called.
+
+Options:
+  --version             show program's version number and exit
+  -h, --help            show this help message and exit
+  -a, --all             all of the repositories listed in the config file will
+                        be updated - either this or the name option must be
+                        specified
+  -c CONFIG, --config=CONFIG
+                        Provide a custom configuration file, defaults to
+                        /etc/reposync/repos.yaml if none provided
+  -d DIRECTORY, --directory=DIRECTORY
+                        Set the base path to store the repositories - default
+                        read from config file. This overrides config file
+  -n NAME, --name=NAME  The name of a YUM repository as contained within the
+                        config (repeatable) either this or the all option must
+                        be specified
+  -s, --show            Display all available YUM repositories as contained
+                        within the config
 
 ```
-for key in remoterepos:
-    name = remoterepos[key]["name"]
-    osver = remoterepos[key]["osver"]
-    arch = remoterepos[key]["arch"]
-    stable = remoterepos[key]["stable_release"]
-    repo_type = remoterepos[key]["repo_type"]
-    url = remoterepos[key]["url"]
-    link_type = remoterepos[key]["link_type"]
 
-    repos.append(pakrat.repo.factory(name=name, baseurls=[url]))
-    arches.append(arch)
-    osvers.append(osver)
-    stable_list.append(stable)
+The repositories are read in from repos.yaml
 
-  mycallback_instance = mycallback()
-  pakrat.sync(objrepos=repos, basedir=basepath, repoarches=arches,
-              osvers=osvers, stableversion=stable_list,
-              callback=mycallback_instance, repoversion=datestamp)
-```
-
-For local repositories:
+The syntax of repos.yaml is as follows:
 
 ```
-  mycallback_instance = mycallback()
-  pakrat.localsync(repos=localrepos, basedir=basepath,
-                   callback=mycallback_instance, repoversion=datestamp)
-
-```
-
-calling in the yaml python module, you should be able to send data through to pakrat in a structure similar to the example below:
-
-```
-basepath: "/var/www/repositories"
+basepath: "/var/www/html/repos"
 
 repos:
   repo-zabbix7:
-    name: "zabbix2.2"
+    name: "zabbix"
     url: "http://repo.zabbix.com/zabbix/2.2/rhel/7/x86_64"
     arch: "x86_64"
     osver: "centos7"
-    stable_release: "20150407"
-    link_type: "symlink"
-  repo-zabbix6:
-    name: "zabbix2.2"
-    url: "http://repo.zabbix.com/zabbix/2.2/rhel/7/x86_64"
+    stable_release: "20150320"
+    link_type: hardlink
+    delete: true
+  repo-local-test:
+    name: "local-test"
     arch: "x86_64"
     osver: "centos6"
-    stable_release: "20150407"
-    link_type: "hardlink"
-  repo-epel-el7-x86_64:
-    name: "epel"
-    url: "http://dl.fedoraproject.org/pub/epel/7/x86_64"
-    arch: "x86_64"
-    osver: "centos7"
-    stable_release: "20150408"
-    link_type: "hardlink"
-  repo-custom-local-x86-64:
-    name: "custom-Other"
-    arch: "x86_64"
-    osver: "centos5"
-    stable_release: "20150422"
+    stable_release: "20150325"
     repo_type: "local"
-    link_type: "hardlink"
+    link_type: symlink
+    delete: false
 ```
 
-How Pakrat creates repos now:
+The basepath will default to /var/www/html, this value must be set to the base location where all repositories will be managed from.
+
+The repos stanza, then requires a unique identifier, so for example repo-zabbix7 - this name is used to select the repository on a command line run as shown above, it is not used by pakrat or reposync as anything else other than a unique identifier.
+
+* name:
+The name field should be set to the name of the repository, this does not need to be unique.
+
+* repo_type:
+This must be set to local if the repo_type is a local path that needs to be converted and versioned into a proper functioning yum repository.
+
+* url:
+The url should be set if the repository in question is a remote repository.
+
+* arch:
+this must be set and indicates the arch of the repo, this is used to determine the repo path and can be x86_64, noarch or i386 (this can be set to anything though)
+
+* osver:
+This must be set. For centos5 repos to work and to have the correct hash applied this must be set to centos5 or 5 (currently the check employed is very basic)
+
+* stable_release:
+This again must be set and should be set to a valid versioned release, the format is as as follows: YYYYMMDD, all repos are datestamp versioned / archived in this method.
+
+* link_type:
+This supports two different link types, either symlink or hardlink, if hardlink is set then rpm files are hardlinked but the latest and stable directories are symlinked -- this allows for repositories to be tracked as they change so as files are deleted remotely they can be tracked locally (hardlinking will keep the file in previous versioned repos while newer versions can have the files deleted)
+This defaults to symlink if not specified.
+
+* delete:
+This can be either true or false, if not set it defaults to false and if link_type is set to symlink this option is ignored and set to false.
+This allows the repo packages to be deleted as packages are deleted on the remote repo. This is only useful for hardlinked repos.
+
+### Local Repositories
+The Local method listed above obviously expects the rpms to be available locally, but it also requires the path structure to match the remote method path creation and for the rpms to be available in that path.
+
+Lets say the repos.yaml states:
+
+```
+basepath: "/var/www/html/repos"
+repos:
+  repo-c6-64-local-test:
+    name: "local-test"
+    arch: "x86_64"
+    osver: "centos6"
+    stable_release: "22042015"
+    repo_type: "local"
+```
+
+The path structure is as follows:
+
+```
+<base_path>/<name>/<osver>/<arch>/
+```
+
+Given the example above, the local method will expect the rpms to be in :
+
+```
+/var/www/html/repos/local-test/centos6/x86_64/*.rpm
+```
+
+If the path doesnt exist it will create the path structure but cannot create repo data, it will inform you of the path it expects the rpms to be in. Once the rpms are in place reposync can make it into a rpm repository and control it.
+
+
+### Remote Repositories
 
 For a remote repository, it works the same way, except, it sends it to the following path:
 
@@ -116,7 +175,7 @@ For a remote repository, it works the same way, except, it sends it to the follo
 Taking zabbix from the yaml example above, the directory structure would be as follows:
 
 ```
-/var/www/repositories/zabbix2.2:
+/var/www/html/repos/zabbix2.2:
 
 # tree -d
 .
@@ -155,17 +214,9 @@ Taking zabbix from the yaml example above, the directory structure would be as f
 
 ```
 
-The local repository method works slightly differently it expects the rpms to be in the location, as it would be created using the remote method, so taking the custom-other repo as an exmaple it would expect the rpms to be in the following location:
 
-```
-/var/www/repositories/custom-other/centos5/x86_64/*.rpm
-
-```
-
-It will scan that directory for all of the rpms and then create the repo metadata and the latest and stable symlinks.
-
-If you wish to use this updated version and the instructions don't make sense, or you need help or would like to pass along improvements please get in contact with me.
-
+OLD INSTRUCTIONS (NOT REALLY APPLICABLE NOW)
+--------------------------------------------
 
 Pakrat
 -------

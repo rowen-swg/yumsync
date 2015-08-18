@@ -14,15 +14,17 @@ from optparse import OptionParser
 parser = OptionParser(version='pakrat / reposync v%s' % pakrat.__version__,
     usage='\n'.join([
         'reposync [options]\n',
-        'Repositories are read in from a yaml config default is repos.yaml',
+        'Repositories are read in from a yaml config default is /etc/reposync/repos.yaml',
         'the all or name options should be specified to update repositories',
         'the name option can be repeated several times to update multiple repos',
         'the show option will display all available repo names that can be called.'
     ]))
-parser.add_option('-c', '--config', action='store', default="repos.yaml",
-    help='Provide a custom configuration file, defaults to repos.yaml if none provided')
 parser.add_option('-a', '--all', action='store_true',
     help='all of the repositories listed in the config file will be updated - either this or the name option must be specified')
+parser.add_option('-c', '--config', action='store', default="/etc/reposync/repos.yaml",
+    help='Provide a custom configuration file, defaults to /etc/reposync/repos.yaml if none provided')
+parser.add_option('-d', '--directory', action="store",
+    help='Set the base path to store the repositories - default read from config file. This overrides config file')
 parser.add_option('-n', '--name', action='append',
     help='The name of a YUM repository as contained within the config (repeatable) either this or the all option must be specified')
 parser.add_option('-s', '--show', action="store_true",
@@ -173,8 +175,12 @@ options, args = parser.parse_args()
 with open(options.config, "r") as repoyml:
   repocfg = yaml.safe_load(repoyml)
 
-## Set the basepath or basedir from the yaml configuration file.
-basepath=repocfg['basepath']
+## Set the basepath or basedir from the command line (-d / --directory) if provided,
+## else get from yaml configuration file.
+if options.directory:
+  basepath = options.directory
+else:
+  basepath = repocfg['basepath']
 
 reposrun = check_cmd(**repocfg)
 

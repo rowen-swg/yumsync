@@ -46,7 +46,7 @@ def create_localmetadata(pkgdir=None, packages=None, comps=None, osver=None):
   generates YUM metadata for it using the createrepo sister library.
   """
 
-  if "centos5" == osver:
+  if ("centos5" == osver) or ("5" == osver):
     sumtype = "sha"
   else:
     sumtype = "sha256"
