@@ -40,11 +40,11 @@ rm -rf %{buildroot}
 %files
 %defattr(-,root,root,-)
 %{python_sitelib}/%{name}*
-%attr(0755, root, root) %{_bindir}/reposync
-%attr(0755, root, root) %{_bindir}/reposync
-%config /etc/reposync/repos.yaml
-%config /etc/reposync/COPYING
-%config /etc/reposync/README.md
+%attr(0755, root, root) %{_bindir}/sync-repo
+%attr(0755, root, root) %{_bindir}/sync-repo
+%config /etc/sync-repo/repos.yaml
+%config /etc/sync-repo/COPYING
+%config /etc/sync-repo/README.md
 
 %changelog
 * %(date "+%a %b %d %Y") %{name} - %{version}-%{release}

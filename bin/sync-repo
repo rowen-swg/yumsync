@@ -1,8 +1,8 @@
 #!/usr/bin/python
 #
-#  reposync : versioned yum repositories
+#  sync-repo : versioned yum repositories
 #  pakrat originally developed by Ryan Uber
-#  reposync vamegh hedayati 2015
+#  sync-repo vamegh hedayati 2015
 
 import os
 import sys
@@ -11,18 +11,18 @@ import pakrat
 import yaml
 from optparse import OptionParser
 
-parser = OptionParser(version='pakrat / reposync v%s' % pakrat.__version__,
+parser = OptionParser(version='pakrat / sync-repo v%s' % pakrat.__version__,
     usage='\n'.join([
-        'reposync [options]\n',
-        'Repositories are read in from a yaml config default is /etc/reposync/repos.yaml',
+        'sync-repo [options]\n',
+        'Repositories are read in from a yaml config default is /etc/sync-repo/repos.yaml',
         'the all or name options should be specified to update repositories',
         'the name option can be repeated several times to update multiple repos',
         'the show option will display all available repo names that can be called.'
     ]))
 parser.add_option('-a', '--all', action='store_true',
     help='all of the repositories listed in the config file will be updated - either this or the name option must be specified')
-parser.add_option('-c', '--config', action='store', default="/etc/reposync/repos.yaml",
-    help='Provide a custom configuration file, defaults to /etc/reposync/repos.yaml if none provided')
+parser.add_option('-c', '--config', action='store', default="/etc/sync-repo/repos.yaml",
+    help='Provide a custom configuration file, defaults to /etc/sync-repo/repos.yaml if none provided')
 parser.add_option('-d', '--directory', action="store",
     help='Set the base path to store the repositories - default read from config file. This overrides config file')
 parser.add_option('-n', '--name', action='append',
@@ -125,7 +125,7 @@ def handle_remote(remoterepos={}, basepath=None):
   # Create callbacks and logging
   class mycallback(object):
     def log(self, msg):
-      with open('/var/log/reposync.log', 'a') as logfile:
+      with open('/var/log/sync-repo.log', 'a') as logfile:
         logfile.write('%s\n' % msg)
 
     def repo_init(self, repo_id, num_pkgs):

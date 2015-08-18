@@ -27,12 +27,12 @@ required_module('createrepo')
 
 setup(name='pakrat',
     version='0.9',
-    description='A tool for mirroring and versioning YUM repositories -- reposync version',
+    description='A tool for mirroring and versioning YUM repositories -- sync-repo version',
     author='Ryan Uber & Vamegh Hedayati',
     author_email='ru@ryanuber.com / repo@ev9.io',
     url='https://github.com/vamegh/pakrat',
     packages=['pakrat'],
-    scripts=['bin/reposync'],
+    scripts=['bin/sync-repo'],
     package_data={'pakrat': ['LICENSE', 'README.md']},
-    data_files=[('/etc/reposync', ['config/repos.yaml', 'COPYING', 'README.md'])]
+    data_files=[('/etc/sync-repo', ['config/repos.yaml', 'COPYING', 'README.md'])]
 )

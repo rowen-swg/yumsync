@@ -11,11 +11,11 @@ What this supports:
   * Stable and Latest repo paths created -- stable linking to a known good repo date.
   * hard linking / symlinking paths -- this allows to maintain repository state by deleting files as hardlinks maintain deleted files
   * output formatting in colour and handled by the blessings library - real time progress indicator seems to be working properly now.
-  * new command line tool called reposync.
+  * new command line tool called sync-repo.
 
 What this does not support:
 ---------------------------
-  * The original pakrat command line tool - this has now been replaced with reposync.
+  * The original pakrat command line tool - this has now been replaced with sync-repo.
   * Combined Repository metadata
 
 Most of the changes made have been to:
@@ -25,7 +25,7 @@ Most of the changes made have been to:
   * pakrat/__init__.py
   * pakrat/repo.py
   * pakrat/util.py
-  * bin/reposync (pakrat cli no longer exists)
+  * bin/sync-repo (pakrat cli no longer exists)
 ```
 
 Known Issues:
@@ -35,12 +35,12 @@ There is a lot of room for improvement in the updates applied so far,
 centos5 mapping is a bit pants, the repo osver has to be marked as centos5 or 5 for it to use sha hashing.
 If you fork from this and make any improvements let me know and I will merge it into this version as well.
 
-Reposync Usage:
+sync-repo Usage:
 ------
 
 ## Introduction
 
-reposync is a command line tool for synchronising remote yum repositories and creating new local yum repositories.
+sync-repo is a command line tool for synchronising remote yum repositories and creating new local yum repositories.
 
 
 ## Usage
@@ -48,11 +48,11 @@ reposync is a command line tool for synchronising remote yum repositories and cr
 repsync usage is as follows:
 
 
-``` ./reposync -c ../config/repos.yaml
+``` ./sync-repo -c ../config/repos.yaml
 
-Usage: reposync [options]
+Usage: sync-repo [options]
 
-Repositories are read in from a yaml config default is /etc/reposync/repos.yaml
+Repositories are read in from a yaml config default is /etc/sync-repo/repos.yaml
 the all or name options should be specified to update repositories
 the name option can be repeated several times to update multiple repos
 the show option will display all available repo names that can be called.
@@ -65,7 +65,7 @@ Options:
                         specified
   -c CONFIG, --config=CONFIG
                         Provide a custom configuration file, defaults to
-                        /etc/reposync/repos.yaml if none provided
+                        /etc/sync-repo/repos.yaml if none provided
   -d DIRECTORY, --directory=DIRECTORY
                         Set the base path to store the repositories - default
                         read from config file. This overrides config file
@@ -105,7 +105,7 @@ repos:
 
 The basepath will default to /var/www/html, this value must be set to the base location where all repositories will be managed from.
 
-The repos stanza, then requires a unique identifier, so for example repo-zabbix7 - this name is used to select the repository on a command line run as shown above, it is not used by pakrat or reposync as anything else other than a unique identifier.
+The repos stanza, then requires a unique identifier, so for example repo-zabbix7 - this name is used to select the repository on a command line run as shown above, it is not used by pakrat or sync-repo as anything else other than a unique identifier.
 
 * name:
 The name field should be set to the name of the repository, this does not need to be unique.
@@ -161,7 +161,7 @@ Given the example above, the local method will expect the rpms to be in :
 /var/www/html/repos/local-test/centos6/x86_64/*.rpm
 ```
 
-If the path doesnt exist it will create the path structure but cannot create repo data, it will inform you of the path it expects the rpms to be in. Once the rpms are in place reposync can make it into a rpm repository and control it.
+If the path doesnt exist it will create the path structure but cannot create repo data, it will inform you of the path it expects the rpms to be in. Once the rpms are in place sync-repo can make it into a rpm repository and control it.
 
 
 ### Remote Repositories
