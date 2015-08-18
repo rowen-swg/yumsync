@@ -26,7 +26,8 @@ def localsync(repos={}, basedir=None, repoversion=None, link_type=None, callback
     link_type = repos[key]["link_type"]
     repo.localsync(name, dest, osver, arch, repoversion, stable, link_type, delete)
 
-def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], link_types=[], repodirs=[], repofiles=[],
+def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], uniq_names=[],
+         names=[], stableversion=[], link_types=[], repodirs=[], repofiles=[],
          repoversion=None, delete_stats=[], combined=False, callback=None):
     """ Mirror repositories with configuration data from multiple sources.
 
@@ -59,12 +60,15 @@ def sync(basedir=None, objrepos=[], osvers=[], repoarches=[], stableversion=[], 
         stable = stableversion.pop(0)
         delete = delete_stats.pop(0)
         link_type = link_types.pop(0)
+        uniq_name = uniq_names.pop(0)
+        name = names.pop(0)
         if "symlink" == link_type:
           delete = False  # versioned symlinked repos should not be deleted
         prog.update(objrepo.id)  # Add the repo to the progress object
         yumcallback = progress.YumProgress(objrepo.id, queue, callback)
         repocallback = progress.ProgressCallback(queue, callback)
-        dest = util.get_repo_dir(basedir, objrepo.id)
+        #dest = util.get_repo_dir(basedir, objrepo.id)
+        dest = util.get_repo_dir(basedir, name)
         p = multiprocessing.Process(target=repo.sync, args=(objrepo, dest, osver, arch,
                                     repoversion, stable, link_type, delete, combined, yumcallback,
                                     repocallback))

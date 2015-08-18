@@ -121,6 +121,8 @@ def handle_remote(remoterepos={}, basepath=None):
   stable_list = []
   link_types = []
   delete_stats = []
+  uniq_names = []
+  names = []
 
   # Create callbacks and logging
   class mycallback(object):
@@ -151,16 +153,18 @@ def handle_remote(remoterepos={}, basepath=None):
     link_type = remoterepos[key]["link_type"]
     url = remoterepos[key]["url"]
 
-    repo_name = osver+"_"+arch+"_"+name
-    repos.append(pakrat.repo.factory(name=repo_name, baseurls=[url]))
+    uniq_name = osver+"_"+arch+"_"+name
+    repos.append(pakrat.repo.factory(name=uniq_name, baseurls=[url]))
     arches.append(arch)
     osvers.append(osver)
     stable_list.append(stable)
     link_types.append(link_type)
     delete_stats.append(delete)
+    uniq_names.append(uniq_name)
+    names.append(name)
 
   mycallback_instance = mycallback()
-  pakrat.sync(objrepos=repos, basedir=basepath, repoarches=arches,
+  pakrat.sync(objrepos=repos, basedir=basepath, repoarches=arches, uniq_names=uniq_names, names=names,
               osvers=osvers, stableversion=stable_list, link_types=link_types, delete_stats=delete_stats,
               callback=mycallback_instance, repoversion=datestamp)
 
