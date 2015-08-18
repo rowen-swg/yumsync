@@ -35,8 +35,8 @@ There is a lot of room for improvement in the updates applied so far,
 centos5 mapping is a bit pants, the repo osver has to be marked as centos5 or 5 for it to use sha hashing.
 If you fork from this and make any improvements let me know and I will merge it into this version as well.
 
-sync-repo Usage:
-------
+Sync-repo usage:
+----------------
 
 ## Introduction
 
