@@ -1,7 +1,7 @@
 
 What this is:
 -------------
-  * This is an updated version of the pakrat libraries, forked from the original By Ryan Uber.
+  * This is an updated version of the yumsync libraries, forked from the original By Ryan Uber.
 
 What this supports:
 -------------------
@@ -15,17 +15,17 @@ What this supports:
 
 What this does not support:
 ---------------------------
-  * The original pakrat command line tool - this has now been replaced with sync-repo.
+  * The original yumsync command line tool - this has now been replaced with sync-repo.
   * Combined Repository metadata
 
 Most of the changes made have been to:
 --------------------------------------
 
 ```
-  * pakrat/__init__.py
-  * pakrat/repo.py
-  * pakrat/util.py
-  * bin/sync-repo (pakrat cli no longer exists)
+  * yumsync/__init__.py
+  * yumsync/repo.py
+  * yumsync/util.py
+  * bin/sync-repo (yumsync cli no longer exists)
 ```
 
 Known Issues:
@@ -106,7 +106,7 @@ repos:
 
 The basepath will default to /var/www/html, this value must be set to the base location where all repositories will be managed from.
 
-The repos stanza, then requires a unique identifier, so for example repo-zabbix7 - this name is used to select the repository on a command line run as shown above, it is not used by pakrat or sync-repo as anything else other than a unique identifier.
+The repos stanza, then requires a unique identifier, so for example repo-zabbix7 - this name is used to select the repository on a command line run as shown above, it is not used by yumsync or sync-repo as anything else other than a unique identifier.
 
 * name:
 The name field should be set to the name of the repository, this does not need to be unique.
@@ -219,7 +219,7 @@ Taking zabbix from the yaml example above, the directory structure would be as f
 ORIGINAL INSTRUCTIONS
 ----------------------
 
-Pakrat
+YUMsync
 -------
 
 A tool to mirror and version YUM repositories
@@ -229,13 +229,13 @@ so that a latest and stable version can be set for each repo.
 What does it do?
 ----------------
 
-* You invoke pakrat and pass it some information about your repositories.
-* Pakrat mirrors the YUM repositories, and optionally arranges the data in a
+* You invoke yumsync and pass it some information about your repositories.
+* YUMsync mirrors the YUM repositories, and optionally arranges the data in a
   versioned manner.
 
-It is easiest to demonstrate what Pakrat does by shell example:
+It is easiest to demonstrate what YUMsync does by shell example:
 ```
-$ pakrat --repodir /etc/yum.repos.d
+$ yumsync --repodir /etc/yum.repos.d
 
   repo              done/total       complete    metadata
   -------------------------------------------------------
@@ -264,22 +264,22 @@ Features
 Installation
 ------------
 
-Pakrat is available in PyPI as `pakrat`. That means you can install it with
+YUMsync is available in PyPI as `yumsync`. That means you can install it with
 easy_install:
 
 ```
-# easy_install pakrat
+# easy_install yumsync
 ```
 
 *NOTE*
-Installation from PyPI should work on any Linux. However, since Pakrat depends
+Installation from PyPI should work on any Linux. However, since YUMsync depends
 on YUM and Createrepo, which are not available in PyPI, these dependencies will
 not be detected as missing. The easiest install path is to install on some kind
 of RHEL like so:
 
 ```
 # yum -y install createrepo
-# easy_install pakrat
+# easy_install yumsync
 ```
 
 How to use it
@@ -289,7 +289,7 @@ The simplest possible example would involve mirroring a YUM repository in a
 very basic way, using the CLI:
 
 ```
-$ pakrat --name centos --baseurl http://mirror.centos.org/centos/6/os/x86_64
+$ yumsync --name centos --baseurl http://mirror.centos.org/centos/6/os/x86_64
 $ tree -d centos
 centos/
 ├── Packages
@@ -300,7 +300,7 @@ A slightly more complex example would be to version the same repository. To
 do this, you must pass in a version number. An easy example is to mirror a
 repository daily.
 ```
-$ pakrat \
+$ yumsync \
     --repoversion $(date +%Y-%m-%d) \
     --name centos \
     --baseurl http://mirror.centos.org/centos/6/os/x86_64
@@ -336,12 +336,12 @@ useful because you could simply point your clients to the root of your
 repository, and they will have access to its complete history of RPMs. You can
 do this by passing in the `--combined` option when versioning repositories.
 
-Pakrat is also capable of handling multiple YUM repositories in the same mirror
+YUMsync is also capable of handling multiple YUM repositories in the same mirror
 run. If multiple repositories are specified, each repository will get its own
 download thread. This is handy if you are syncing from a mirror that is not
 particularly quick. The other repositories do not need to wait on it to finish.
 ```
-$ pakrat \
+$ yumsync \
     --repoversion $(date +%Y-%m-%d) \
     --name centos --baseurl http://mirror.centos.org/centos/6/os/x86_64 \
     --name epel --baseurl http://dl.fedoraproject.org/pub/epel/6/x86_64
@@ -363,34 +363,34 @@ epel/
 Configuration can also be passed in from YUM configuration files. See the CLI
 `--help` for details.
 
-Pakrat also exposes its interfaces in plain python for integration with other
-projects and software. A good starting point for using Pakrat via the python
-API is to take a look at the `pakrat.sync` method. The CLI calls this method
+YUMsync also exposes its interfaces in plain python for integration with other
+projects and software. A good starting point for using YUMsync via the python
+API is to take a look at the `yumsync.sync` method. The CLI calls this method
 almost exclusively, so it should be fairly straightforward in its usage (all
 arguments are named and optional):
 ```
-pakrat.sync(basedir, objrepos, repodirs, repofiles, repoversion, delete, callback)
+yumsync.sync(basedir, objrepos, repodirs, repofiles, repoversion, delete, callback)
 ```
 
-Another handy python method is `pakrat.repo.factory`, which creates YUM
+Another handy python method is `yumsync.repo.factory`, which creates YUM
 repository objects so that no file-based configuration is needed.
 ```
-pakrat.repo.factory(name, baseurls=None, mirrorlist=None)
+yumsync.repo.factory(name, baseurls=None, mirrorlist=None)
 ```
 
 User-defined callbacks
 ----------------------
 
 Since the YUM team did a decent job at externalizing the progress data,
-pakrat will return the favor by exposing the same data, plus some extras
+yumsync will return the favor by exposing the same data, plus some extras
 via user callbacks.
 
 A user callback is a simple class that implements some methods for handling
 received data. It is not mandatory to implement any of the methods.
 
-A few of the available user callbacks in pakrat come directly from the
+A few of the available user callbacks in yumsync come directly from the
 `urlgrabber` interface (namely, any user callback beginning with `download_`.
-The other methods are called by pakrat, which explains why the interfaces
+The other methods are called by yumsync, which explains why the interfaces
 are varied.
 
 The supported user callbacks are listed in the following method signatures:
@@ -420,12 +420,12 @@ download_update(repo_id, size)
 download_end(repo_id, size)
 ```
 
-The following is a basic example of how to use user callbacks in pakrat.
-Note that an instance of the class is passed into the `pakrat.sync()` call
+The following is a basic example of how to use user callbacks in yumsync.
+Note that an instance of the class is passed into the `yumsync.sync()` call
 as the named argument `callback`.
 
 ```python
-import pakrat
+import yumsync
 
 class mycallback(object):
     def log(self, msg):
@@ -445,13 +445,13 @@ class mycallback(object):
     def repo_metadata(self, repo_id, status):
         self.log('Metadata for repo %s is now %s' % (repo_id, status))
 
-myrepo = pakrat.repo.factory(
+myrepo = yumsync.repo.factory(
     'extras',
     mirrorlist='http://mirrorlist.centos.org/?repo=extras&release=6&arch=x86_64'
 )
 
 mycallback_instance = mycallback()
-pakrat.sync(objrepos=[myrepo], callback=mycallback_instance)
+yumsync.sync(objrepos=[myrepo], callback=mycallback_instance)
 ```
 
 If you run the above example, and then take a look in the `log.txt` file (which
@@ -479,16 +479,16 @@ Metadata for repo extras is now complete
 Building an RPM
 ---------------
 
-Pakrat can be easily packaged into an RPM.
+YUMsync can be easily packaged into an RPM.
 
-1. Download a release and name the tarball `pakrat.tar.gz`:
+1. Download a release and name the tarball `yumsync.tar.gz`:
 ```
-curl -o pakrat.tar.gz -L https://github.com/ryanuber/pakrat/archive/master.tar.gz
+curl -o yumsync.tar.gz -L https://github.com/ryanuber/yumsync/archive/master.tar.gz
 ```
 
 2. Build it into an RPM:
 ```
-rpmbuild -tb pakrat.tar.gz
+rpmbuild -tb yumsync.tar.gz
 ```
 
 What's missing

@@ -6,7 +6,7 @@ class Progress(object):
     """ Handle progress indication using callbacks.
 
     This class will create an object that stores information about a
-    running pakrat process. It stores information about each repository
+    running yumsync process. It stores information about each repository
     being synced, including total packages, completed packages, and
     the status of the repository metadata. This makes it possible to
     display aggregated status of multiple repositories during a sync.
@@ -167,7 +167,7 @@ class Progress(object):
 
         Unforutnately, the YUM library calls print directly rather than just
         throwing exceptions and handling them in the presentation layer, so
-        this means that pakrat's output will be slightly flawed if YUM prints
+        this means that yumsync's output will be slightly flawed if YUM prints
         something directly to the screen from a worker process.
         """
         if not sys.stdout.isatty():
@@ -249,7 +249,7 @@ class YumProgress(object):
     def update(self, size):
         """ Called during the course of a download.
 
-        Pakrat does not use this for anyting, but we'll be a good neighbor and
+        YUMsync does not use this for anyting, but we'll be a good neighbor and
         pass the data on to the user callback.
         """
         self.callback('download_update', size)
@@ -268,7 +268,7 @@ class YumProgress(object):
 class ProgressCallback(object):
     """ Register our own callback for progress indication.
 
-    This class allows pakrat to stuff a user callback into an object before
+    This class allows yumsync to stuff a user callback into an object before
     forking a thread, so that we don't have to keep making calls to multiple
     callbacks everywhere.
     """

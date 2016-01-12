@@ -1,4 +1,4 @@
-# pakrat - A tool for mirroring and versioning YUM repositories.
+# yumsync - A tool for mirroring and versioning YUM repositories.
 # Copyright 2013 Ryan Uber <ru@ryanuber.com>. All rights reserved.
 #
 # MIT LICENSE
@@ -24,8 +24,8 @@
 
 import os
 import yum
-from pakrat.yumbase import YumBase
-from pakrat import log
+from yumsync.yumbase import YumBase
+from yumsync import log
 
 RPMDIR = 'RPMs'
 METADATADIR = 'repodata'

@@ -6,10 +6,10 @@ import yum
 import createrepo
 import copy
 from contextlib import contextmanager
-from pakrat import util, log
+from yumsync import util, log
 
 def factory(name, baseurls=None, mirrorlist=None):
-    """ Generate a pakrat.yumbase.YumBase object on-the-fly.
+    """ Generate a yumsync.yumbase.YumBase object on-the-fly.
 
     This makes it possible to mirror YUM repositories without having any stored
     configuration anywhere. Simply pass in the name of the repository, and

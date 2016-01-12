@@ -1,6 +1,6 @@
 import os
 import yum
-from pakrat import util, log
+from yumsync import util, log
 
 def from_file(path):
     """ Read repository configuration from a YUM config file.

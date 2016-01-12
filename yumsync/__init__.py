@@ -3,7 +3,7 @@ import sys
 import multiprocessing
 import signal
 import urlparse
-from pakrat import util, log, repo, repos, progress
+from yumsync import util, log, repo, repos, progress
 
 __version__ = '0.9.5'
 

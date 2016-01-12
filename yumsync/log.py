@@ -7,7 +7,7 @@ def write(pri, message):
     Currently just uses syslog, and if unattended, writes the log messages
     to stdout so they can be piped elsewhere.
     """
-    syslog.openlog('pakrat')  # sets log ident
+    syslog.openlog('yumsync')  # sets log ident
     syslog.syslog(pri, message)
     if not sys.stdout.isatty():
         print message  # print if running unattended

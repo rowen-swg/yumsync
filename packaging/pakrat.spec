@@ -1,7 +1,7 @@
 %{!?python_sitelib: %define python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
-%define pakrat_dir %(tar -tzf %{SOURCE0} | egrep '^(\./)?pakrat(-[^/]*)?/$')
+%define yumsync_dir %(tar -tzf %{SOURCE0} | egrep '^(\./)?yumsync(-[^/]*)?/$')
 
-name: pakrat
+name: yumsync
 summary: A Python library for mirroring and versioning YUM repositories -- modrepo version
 version: 0.9.5
 release: 1%{?dist}
@@ -12,11 +12,11 @@ buildrequires: yum, createrepo, python-setuptools-devel
 requires: yum, createrepo, python-blessings, PyYAML, pyliblzma
 
 %description
-Pakrat is a Pythonic library used to mirror YUM repositories using
+YUMsync is a Pythonic library used to mirror YUM repositories using
 a snapshot-based approach with common package file storage to reduce
-the footprint of storing versioned repositories. Pakrat uses the
+the footprint of storing versioned repositories. YUMsync uses the
 standard YUM repository configuration format and supports baseurls
-as well as mirrorlists. Pakrat provides both a command-line
+as well as mirrorlists. YUMsync provides both a command-line
 interface as well as an easy-to-use Python api for integration with
 other projects.
 This updated version supports:
@@ -26,7 +26,7 @@ This updated version supports:
   * has ability to hardlink or symlink -- hardlinking use with rpm
 
 %prep
-%setup -n %{pakrat_dir}
+%setup -n %{yumsync_dir}
 
 %build
 %{__python} setup.py build

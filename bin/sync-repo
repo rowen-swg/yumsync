@@ -1,17 +1,17 @@
 #!/usr/bin/python
 #
 #  sync-repo : versioned yum repositories
-#  pakrat originally developed by Ryan Uber
+#  yumsync originally developed by Ryan Uber
 #  sync-repo vamegh hedayati 2015
 
 import os
 import sys
 import datetime
-import pakrat
+import yumsync
 import yaml
 from optparse import OptionParser
 
-parser = OptionParser(version='pakrat / sync-repo v%s' % pakrat.__version__,
+parser = OptionParser(version='yumsync / sync-repo v%s' % yumsync.__version__,
     usage='\n'.join([
         'sync-repo [options]\n',
         '\n* sync-repo must be run as root *\n',
@@ -155,7 +155,7 @@ def handle_remote(remoterepos={}, basepath=None):
     url = remoterepos[key]["url"]
 
     uniq_name = osver+"_"+arch+"_"+name
-    repos.append(pakrat.repo.factory(name=uniq_name, baseurls=[url]))
+    repos.append(yumsync.repo.factory(name=uniq_name, baseurls=[url]))
     arches.append(arch)
     osvers.append(osver)
     stable_list.append(stable)
@@ -165,14 +165,14 @@ def handle_remote(remoterepos={}, basepath=None):
     names.append(name)
 
   mycallback_instance = mycallback()
-  pakrat.sync(objrepos=repos, basedir=basepath, repoarches=arches, uniq_names=uniq_names, names=names,
+  yumsync.sync(objrepos=repos, basedir=basepath, repoarches=arches, uniq_names=uniq_names, names=names,
               osvers=osvers, stableversion=stable_list, link_types=link_types, delete_stats=delete_stats,
               callback=mycallback_instance, repoversion=datestamp)
 
 def handle_local(localrepos={}, basepath=None):
   # used for version
   datestamp = datetime.datetime.now().strftime("%Y%m%d")
-  pakrat.localsync(repos=localrepos, basedir=basepath,
+  yumsync.localsync(repos=localrepos, basedir=basepath,
                    repoversion=datestamp)
 
 if os.geteuid() != 0:
