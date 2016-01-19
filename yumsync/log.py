@@ -1,29 +1,24 @@
+import os
 import sys
-import syslog
+import time
 
-def write(pri, message):
-    """ Record a log message.
+start = int(time.time())
 
-    Currently just uses syslog, and if unattended, writes the log messages
-    to stdout so they can be piped elsewhere.
-    """
-    syslog.openlog('yumsync')  # sets log ident
-    syslog.syslog(pri, message)
-    if not sys.stdout.isatty():
-        print message  # print if running unattended
+def log(msg, header=False, log_dir=None):
+    time_str = time.strftime('%Y-%m-%dT%X%z')
+    delta = int(time.time()) - start
+    m, s = divmod(delta, 60)
+    h, m = divmod(m, 60)
+    delta_str = '{:02d}:{:02d}:{:02d}'.format(h, m, s)
 
-def debug(message):
-    """ Record a debugging message. """
-    write(syslog.LOG_DEBUG, 'debug: %s' % message)
+    output_str = "==> %s" % msg if header else msg
 
-def trace(message):
-    """ Record a trace message """
-    write(syslog.LOG_DEBUG, 'trace: %s' % message)
+    if log_dir is not None:
+        if os.path.exists(log_dir):
+            with open(os.path.join(log_dir, 'sync.log'), 'a') as logfile:
+                logfile.write('{} {}\n'.format(time_str, output_str))
 
-def error(message):
-    """ Record an error message. """
-    write(syslog.LOG_ERR, 'error: %s' % message)
+    if not sys.__stdout__.isatty():
+        sys.__stdout__.write('{} {}\n'.format(delta_str, output_str))
+        sys.__stdout__.flush()
 
-def info(message):
-    """ Record an informational message. """
-    write(syslog.LOG_INFO, message)

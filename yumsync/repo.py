@@ -6,9 +6,9 @@ import yum
 import createrepo
 import copy
 from contextlib import contextmanager
-from yumsync import util, log
+from yumsync import util
 
-def factory(name, baseurls=None, mirrorlist=None):
+def factory(name, islocal=False, baseurls=None, mirrorlist=None):
     """ Generate a yumsync.yumbase.YumBase object on-the-fly.
 
     This makes it possible to mirror YUM repositories without having any stored
@@ -23,6 +23,8 @@ def factory(name, baseurls=None, mirrorlist=None):
     elif mirrorlist is not None:
         util.validate_mirrorlist(mirrorlist)
         repo = yb.add_enable_repo(name, mirrorlist=mirrorlist)
+    elif islocal:
+        repo = yb.add_enable_repo(name)
     else:
         raise Exception('One or more baseurls or mirrorlist required')
     return repo
@@ -39,49 +41,14 @@ def set_path(repo, path):
 
     return result
 
-def create_localmetadata(pkgdir=None, packages=None, comps=None, osver=None):
-  """ Generate YUM metadata for a local repository.
-
-  This method accepts information about a local repo and
-  generates YUM metadata for it using the createrepo sister library.
-  """
-
-  if ("centos5" == osver) or ("5" == osver):
-    sumtype = "sha"
-  else:
-    sumtype = "sha256"
-
-  conf = createrepo.MetaDataConfig()
-  conf.directory = os.path.dirname(pkgdir)
-  conf.outputdir = os.path.dirname(pkgdir)
-  conf.sumtype = sumtype
-  if packages:
-    conf.pkglist = packages
-  conf.quiet = True
-
-  if comps:
-    groupdir = tempfile.mkdtemp()
-    conf.groupfile = os.path.join(groupdir, 'groups.xml')
-    with open(conf.groupfile, 'w') as f:
-      f.write(comps)
-
-  generator = createrepo.SplitMetaDataGenerator(conf)
-  generator.doPkgMetadata()
-  generator.doRepoMetadata()
-  generator.doFinalMove()
-
-  if comps and os.path.exists(groupdir):
-    shutil.rmtree(groupdir)
-
-
-def create_metadata(repo, packages=None, comps=None, osver=None):
+def create_metadata(repo, packages=None, comps=None, checksum=None):
     """ Generate YUM metadata for a repository.
 
     This method accepts a repository object and, based on its configuration,
     generates YUM metadata for it using the createrepo sister library.
     """
 
-    if "centos5" == osver:
+    if "sha" == checksum or "sha1" == checksum:
       sumtype = "sha"
     else:
       sumtype = "sha256"
@@ -109,14 +76,14 @@ def create_metadata(repo, packages=None, comps=None, osver=None):
     if comps and os.path.exists(groupdir):
         shutil.rmtree(groupdir)
 
-def create_combined_metadata(repo, dest, osver, arch, comps=None):
+def create_combined_metadata(repo, package_dir, comps=None, checksum=None):
     """ Creates YUM metadata for the entire Packages directory.
 
     When used with versioning, this creates a combined repository of all
     packages ever synced for the repository.
     """
-    combined_repo = set_path(repo, util.get_packages_dir(dest,osver,arch))
-    create_metadata(combined_repo, None, comps, osver)
+    combined_repo = set_path(repo, package_dir)
+    create_metadata(combined_repo, None, comps, checksum)
 
 def retrieve_group_comps(repo):
     """ Retrieve group comps XML data from a remote repository.
@@ -129,83 +96,97 @@ def retrieve_group_comps(repo):
             yb = util.get_yum()
             yb.repos.add(repo)
             comps = yb._getGroups().xml()
-            log.info('Group data retrieved for repository %s' % repo.id)
             return comps
         except yum.Errors.GroupsError:
-            log.debug('No group data available for repository %s' % repo.id)
             return None
 
-def localsync(name, dest, osver, arch, version, stableversion, link_type, delete, repocallback=None):
+def localsync(repo, dest, local_dir, checksum, version, stable, link_type, delete, combine=False,
+              repocallback=None):
 
-  """ Create Repo Metadata from Local package repo
-      Also Versions the local repository """
+    package_dir = os.path.join(dest, 'packages')
 
-  if version:
-    dest_dir = util.get_versioned_dir(dest, osver, version)
-    util.make_dir(dest_dir)
-    packages_dir = util.get_ver_packages_dir(dest_dir,arch)
     if "symlink" == link_type:
-      util.symlink(packages_dir, util.get_relative_packages_dir(arch))
+        util.symlink(package_dir, local_dir)
     else:
-      dest_dir = util.get_repo_dir(dest, osver)
-      util.make_dir(dest_dir)
-      packages_dir = util.get_ver_packages_dir(dest_dir,arch)
-  else:
-    dest_dir = dest
-    packages_dir = util.get_packages_dir(dest_dir,osver,arch)
+        util.make_dir(package_dir)
 
-  if delete:
-    package_names = []
-    for package in packages:
-      package_names.append(util.get_package_filename(package))
-    for _file in os.listdir(util.get_packages_dir(dest,osver,arch)):
-      if not _file in package_names:
-        package_path = util.get_package_path(dest, osver, arch, _file)
-        log.debug('Deleting file %s' % package_path)
-        os.remove(package_path)
+    version_dir = None
 
-  actual_package_path = util.get_packages_dir(dest,osver,arch)
-  uniq_repo_id = osver+"-"+arch+"-"+name
-  path_stat='good'
-  print ('Syncing Local Repo :: %s' % (uniq_repo_id))
-  if not os.path.exists(actual_package_path):
-    util.make_dir(actual_package_path)
-    print ('%s did not exist, created for you' % (actual_package_path))
-    print ('Please add all packages you require for repo %s, in path %s\n' % (name, actual_package_path))
-    path_stat='none'
-  else:
-    sys.stdout.write('Scanning packages in :: %s' % (actual_package_path))
+    if version:
+        version_dir = os.path.join(dest, version, 'packages')
+        if "symlink" == link_type:
+            util.symlink(version_dir, os.path.relpath(package_dir, os.path.dirname(version_dir)))
+        else:
+            util.make_dir(version_dir)
 
-  packages=[]
-  log.info('Adding all Packages in repo path %s' % packages_dir)
-  for _file in os.listdir(packages_dir):
-    packages.append(_file)
+    try:
+        repo = set_path(repo, package_dir)
+        local_packages = []
+        for _fname in os.listdir(local_dir):
+            if os.path.isfile(os.path.join(local_dir, _fname)):
+                local_packages.append(_fname)
+        callback(repocallback, repo, 'repo_init', len(local_packages))
 
-  log.info('Creating metadata for repository %s' % name)
-  pkglist = []
-  for pkg in packages:
-    pkglist.append(
-      util.get_package_relativedir(pkg,arch)
-    )
-    if "hardlink" == link_type:
-      original_file = util.get_package_path(dest, osver, arch, pkg)
-      target_file = util.get_target_path(dest, osver, version, arch, pkg)
-      util.hardlink(original_file, target_file)
+        for _file in local_packages:
+            if "symlink" != link_type:
+                util.hardlink(os.path.join(local_dir, _file), os.path.join(package_dir, _file))
+            callback(repocallback, repo, 'link_pkg', _file)
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    except Exception, e:
+        callback(repocallback, repo, 'repo_error', str(e))
+        return False
+    callback(repocallback, repo, 'repo_complete')
 
-  create_localmetadata(pkgdir=packages_dir, packages=pkglist, osver=osver)
+    if delete:
+        for _file in os.listdir(package_dir):
+            package_path = os.path.join(package_dir, _file)
+            if os.path.isfile(package_path):
+                if not _file in local_packages:
+                    os.unlink(package_path)
+                    callback(repocallback, repo, 'delete_pkg', _file)
 
-  log.info('Finished creating metadata for repository %s' % name)
+    pkglist = []
+    for _file in os.listdir(package_dir):
+        if os.path.isfile(os.path.join(package_dir, _file)):
+            pkglist.append(os.path.join(os.path.basename(repo.pkgdir), _file))
+            if version_dir and "hardlink" == link_type:
+                source_file = os.path.join(package_dir, _file)
+                target_file = os.path.join(version_dir, _file)
+                util.hardlink(source_file, target_file)
 
-  if version:
-    latest_symlink = util.get_latest_symlink_path(dest, osver)
-    util.symlink(latest_symlink, version)
-    stable_symlink = util.get_stable_symlink_path(dest, osver)
-    util.symlink(stable_symlink, stableversion)
+    callback(repocallback, repo, 'repo_metadata', 'building')
 
-  if path_stat == 'good':
-    print " ... Done \n"
+    try:
+        if version_dir:
+            repo = set_path(repo, version_dir)
+        create_metadata(repo, pkglist, None, checksum)
+    except Exception, e:
+        callback(repocallback, repo, 'repo_error', str(e))
+        return False
 
-def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, combined=False, yumcallback=None,
+    if version:
+        if combine:
+            create_combined_metadata(repo, package_dir, None, checksum)
+        elif os.path.exists(os.path.join(dest, 'repodata')):
+            # At this point the combined metadata is stale, so remove it.
+            shutil.rmtree(os.path.join(dest, 'repodata'))
+
+    callback(repocallback, repo, 'repo_metadata', 'complete')
+
+    if version:
+        util.symlink(os.path.join(dest, 'latest'), version)
+        if stable:
+            util.symlink(os.path.join(dest, 'stable'), stable)
+        elif os.path.lexists(os.path.join(dest, 'stable')):
+            os.unlink(os.path.join(dest, 'stable'))
+    else:
+        if os.path.lexists(os.path.join(dest, 'latest')):
+            os.unlink(os.path.join(dest, 'latest'))
+        if os.path.lexists(os.path.join(dest, 'stable')):
+            os.unlink(os.path.join(dest, 'stable'))
+
+def sync(repo, dest, checksum, version, stable, link_type, delete, combine=False, yumcallback=None,
          repocallback=None):
     """ Sync repository contents from a remote source.
 
@@ -214,7 +195,6 @@ def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, com
     If the delete flag is passed, any packages found on the local filesystem
     which are not present in the remote repository will be deleted.
     """
-    util.make_dir(util.get_packages_dir(dest,osver,arch))  # Make package storage dir
 
     @contextmanager
     def suppress():
@@ -231,22 +211,19 @@ def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, com
         yield
         sys.stdout = stdout
 
+    package_dir = os.path.join(dest, 'packages')
+    util.make_dir(package_dir)
+    version_dir = None
+
     if version:
-        dest_dir = util.get_versioned_dir(dest, osver, version)
-        util.make_dir(dest_dir)
-        packages_dir = util.get_ver_packages_dir(dest_dir,arch)
+        version_dir = os.path.join(dest, version, 'packages')
         if "symlink" == link_type:
-          util.symlink(packages_dir, util.get_relative_packages_dir(arch))
+            util.symlink(version_dir, os.path.relpath(package_dir, os.path.dirname(version_dir)))
         else:
-          dest_dir = util.get_repo_dir(dest, osver)
-          util.make_dir(dest_dir)
-          packages_dir = util.get_ver_packages_dir(dest_dir,arch)
-    else:
-        dest_dir = dest
-        packages_dir = util.get_packages_dir(dest_dir,osver,arch)
+            util.make_dir(version_dir)
     try:
         yb = util.get_yum()
-        repo = set_path(repo, packages_dir)
+        repo = set_path(repo, package_dir)
         if yumcallback:
             repo.setCallback(yumcallback)
         yb.repos.add(repo)
@@ -268,8 +245,7 @@ def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, com
             local = po.localPkg()
             if os.path.exists(local):
                 if yb.verifyPkg(local, po, False):
-                    callback(repocallback, repo, 'local_pkg_exists',
-                             util.get_package_filename(po))
+                    callback(repocallback, repo, 'local_pkg_exists', util.get_package_filename(po))
 
         with suppress():
             yb.downloadPkgs(packages)
@@ -278,7 +254,6 @@ def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, com
         pass
     except Exception, e:
         callback(repocallback, repo, 'repo_error', str(e))
-        log.error(str(e))
         return False
     callback(repocallback, repo, 'repo_complete')
 
@@ -286,44 +261,57 @@ def sync(repo, dest, osver, arch, version, stableversion, link_type, delete, com
         package_names = []
         for package in packages:
             package_names.append(util.get_package_filename(package))
-        for _file in os.listdir(util.get_packages_dir(dest,osver,arch)):
+        for _file in os.listdir(package_dir):
             if not _file in package_names:
-                package_path = util.get_package_path(dest, osver, arch, _file)
-                log.debug('Deleting file %s' % package_path)
-                os.remove(package_path)
-    log.info('Finished downloading packages from repository %s' % repo.id)
+                package_path = os.path.join(package_dir, _file)
+                os.unlink(package_path)
+                callback(repocallback, repo, 'delete_pkg', _file)
 
-    log.info('Creating metadata for repository %s' % repo.id)
-    callback(repocallback, repo, 'repo_metadata', 'working')
     comps = retrieve_group_comps(repo)  # try group data
+
+    if comps is None:
+        callback(repocallback, repo, 'repo_group_data', 'unavailable')
+    else:
+        callback(repocallback, repo, 'repo_group_data', 'available')
+
     pkglist = []
     for pkg in packages:
-        #print "full package path = ", util.get_package_path(dest, osver, arch, util.get_package_filename(pkg))
-        pkglist.append(
-            util.get_package_relativedir(util.get_package_filename(pkg),arch)
-        )
-        if "hardlink" == link_type:
-          original_file = util.get_package_path(dest, osver, arch, util.get_package_filename(pkg))
-          target_file = util.get_target_path(dest, osver, version, arch, util.get_package_filename(pkg))
-          #print "linking file = ", original_file, "to destination =", target_file
-          util.hardlink(original_file, target_file)
-          repo = set_path(repo, util.get_full_versioned_dir(dest, osver, version, arch))
+        pkglist.append(os.path.join(os.path.basename(repo.pkgdir), util.get_package_filename(pkg)))
+        if version_dir and "hardlink" == link_type:
+          source_file = os.path.join(package_dir, util.get_package_filename(pkg))
+          target_file = os.path.join(version_dir, util.get_package_filename(pkg))
+          util.hardlink(source_file, target_file)
 
-    create_metadata(repo, pkglist, comps, osver)
-    if combined and version:
-        create_combined_metadata(repo, dest, comps)
-    elif os.path.exists(util.get_metadata_dir(dest)):
-        # At this point the combined metadata is stale, so remove it.
-        log.debug('Removing combined metadata for repository %s' % repo.id)
-        shutil.rmtree(util.get_metadata_dir(dest))
-    callback(repocallback, repo, 'repo_metadata', 'complete')
-    log.info('Finished creating metadata for repository %s' % repo.id)
+    callback(repocallback, repo, 'repo_metadata', 'building')
+
+    try:
+        if version_dir:
+            repo = set_path(repo, version_dir)
+        create_metadata(repo, pkglist, comps, checksum)
+    except Exception, e:
+        callback(repocallback, repo, 'repo_error', str(e))
+        return False
 
     if version:
-      latest_symlink = util.get_latest_symlink_path(dest, osver)
-      util.symlink(latest_symlink, version)
-      stable_symlink = util.get_stable_symlink_path(dest, osver)
-      util.symlink(stable_symlink, stableversion)
+        if combine:
+            create_combined_metadata(repo, package_dir, comps, checksum)
+        elif os.path.exists(os.path.join(dest, 'repodata')):
+            # At this point the combined metadata is stale, so remove it.
+            shutil.rmtree(os.path.join(dest, 'repodata'))
+
+    callback(repocallback, repo, 'repo_metadata', 'complete')
+
+    if version:
+        util.symlink(os.path.join(dest, 'latest'), version)
+        if stable:
+            util.symlink(os.path.join(dest, 'stable'), stable)
+        elif os.path.lexists(os.path.join(dest, 'stable')):
+            os.unlink(os.path.join(dest, 'stable'))
+    else:
+        if os.path.lexists(os.path.join(dest, 'latest')):
+            os.unlink(os.path.join(dest, 'latest'))
+        if os.path.lexists(os.path.join(dest, 'stable')):
+            os.unlink(os.path.join(dest, 'stable'))
 
 def callback(callback_obj, repo, event, data=None):
     """ Abstracts calling class callbacks.

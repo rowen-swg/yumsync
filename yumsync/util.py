@@ -25,103 +25,40 @@
 import os
 import yum
 from yumsync.yumbase import YumBase
-from yumsync import log
 
-RPMDIR = 'RPMs'
-METADATADIR = 'repodata'
-LATESTREPO = 'latest'
-STABLEREPO = 'stable'
+def friendly(name):
+    return sanitize(name).replace('/', '_')
+
+def sanitize(name):
+    return name.strip().strip('/')
 
 def get_yum():
     """ Retrieve a YumBase object, pre-configured. """
     return YumBase()
 
-def get_repo_dir(basedir, name):
+def get_repo_dir(base_dir, name):
     """ Return the path to a repository directory.
 
     This is the directory in which all of the repository data will live. The
     path can be relative or fully qualified.
     """
-    return os.path.join(basedir, name)
-
-def get_packages_dir(repodir, osver, arch):
-    """ Return the path to the packages directory of a repository. """
-    #return os.path.join(repodir, osver, arch, RPMDIR)
-    return os.path.join(repodir, osver, arch )
-
-def get_ver_packages_dir(repodir, arch):
-    """ Return the path to the versioned packages directory of a repository.
-        This is used for symlinking  """
-    #return os.path.join(repodir, arch, RPMDIR )
-    return os.path.join(repodir, arch)
-
-def get_package_path(repodir, osver, arch, packagename):
-    """ Return the path to an individual package file. """
-    #return os.path.join(repodir, osver, arch, RPMDIR, packagename)
-    return os.path.join(repodir, osver, arch, packagename)
-
-def get_target_path(repodir, osver, version, arch, packagename):
-    """ Return the target path for an individual package file. """
-    return os.path.join(repodir, osver, version, arch, packagename)
-
-def get_relative_packages_dir(arch):
-    """ Return the relative path to the packages directory. """
-    #return os.path.join('..', RPMDIR)
-    return os.path.join('..', arch)
-
-def get_relative_packages(packagename, arch):
-    """ Return the relative path to the package """
-    return os.path.join('..', arch, packagename)
-
-def get_package_relativedir(packagename, arch):
-    """ Return the relative path to an individual package file.
-
-    This is used during repository metadata creation so that fragments of the
-    local filesystem layout are not found in the repository index.
-    """
-    #return os.path.join(RPMDIR, packagename)
-    return os.path.join(arch, packagename)
-
-def get_versioned_dir(repodir, osver, version):
-    """ Return the path to a specific version of a repository. """
-    return os.path.join(repodir, osver, version)
-
-def get_full_versioned_dir(repodir, osver, version, arch):
-    """ Return the path to a specific version of a repository. """
-    return os.path.join(repodir, osver, version, arch)
-
-def get_latest_symlink_path(repodir, osver):
-    """ Return the path to the latest repository directory.
-
-    The latest directory will be created as a symbolic link, pointing back to
-    the newest versioned copy.
-    """
-    return os.path.join(repodir, osver, LATESTREPO)
-
-def get_stable_symlink_path(repodir, osver):
-    """ Return the path to the latest repository directory.
-
-    The latest directory will be created as a symbolic link, pointing back to
-    the newest versioned copy.
-    """
-    return os.path.join(repodir, osver, STABLEREPO)
+    return os.path.join(base_dir, name)
 
 def get_package_filename(pkg):
     """ From a repository object, return the name of the RPM file. """
     return '%s-%s-%s.%s.rpm' % (pkg.name, pkg.version, pkg.release, pkg.arch)
 
-def get_metadata_dir(repodir):
-    """ Return the path to the repository metadata directory """
-    return os.path.join(repodir, METADATADIR)
+def validate_type(obj, obj_name, obj_type):
+    if type(obj) is not obj_type:
+        raise Exception('%s must be %s, not %s' % (obj_name, obj_type, type(obj)))
 
-def validate_basedir(basedir):
-    """ Validate the input of a basedir.
+def validate_base_dir(base_dir):
+    """ Validate the input of a base_dir.
 
-    Since a basedir can be either absolute or relative, the only thing we can
+    Since a base_dir can be either absolute or relative, the only thing we can
     really validate here is that the value is a regular string.
     """
-    if type(basedir) is not str:
-        raise Exception('basedir must be a string, not "%s"' % type(basedir))
+    validate_type(base_dir, 'base_dir', str)
 
 def validate_url(url):
     """ Validate a source URL. http(s) or file-based accepted. """
@@ -131,76 +68,63 @@ def validate_url(url):
 
 def validate_baseurl(baseurl):
     """ Validate user input of a repository baseurl. """
-    if type(baseurl) is not str:
-        raise Exception('baseurl must be a string')
+    validate_type(baseurl, 'baseurl', str)
     validate_url(baseurl)
+
+def validate_checksums(checksums):
+    """ Validate user input of a repository checksum. """
+    validate_type(checksums, 'checksums', list)
+
+def validate_stable_vers(stable_vers):
+    validate_type(stable_vers, 'stable_ver', list)
+
+def validate_link_types(link_types):
+    validate_type(link_types, 'link_types', list)
+
+def validate_repo_vers(repo_vers):
+    validate_type(repo_vers, 'repo_vers', list)
+
+def validate_deletes(deletes):
+    validate_type(deletes, 'deletes', list)
+
+def validate_combines(combines):
+    validate_type(combines, 'combines', list)
+
+def validate_local_dirs(local_dirs):
+    validate_type(local_dirs, 'local_dirs', list)
 
 def validate_baseurls(baseurls):
     """ Validate multiple baseurls from a list. """
-    if type(baseurls) is not list:
-        raise Exception('baseurls must be a list')
+    validate_type(baseurls, 'baseurl', list)
     for baseurl in baseurls:
         validate_baseurl(baseurl)
 
 def validate_mirrorlist(mirrorlist):
     """ Validate a repository mirrorlist source. """
-    if type(mirrorlist) is not str:
-        raise Exception('mirrorlist must be a string, not "%s"' %
-                        type(mirrorlist))
+    validate_type(mirrorlist, 'mirrorlist', str)
     if mirrorlist.startswith('file://'):
         raise Exception('mirrorlist cannot use a file:// source.')
     validate_url(mirrorlist)
 
 def validate_repo(repo):
     """ Validate a repository object. """
-    if type(repo) is not yum.yumRepo.YumRepository:
-        raise Exception('repo must be a YumRepository, not "%s"' % type(repo))
+    validate_type(repo, 'repo', yum.yumRepo.YumRepository)
 
 def validate_repos(repos):
     """ Validate repository objects. """
-    if type(repos) is not list:
-        raise Exception('repos must be a list, not "%s"' % type(repos))
+    validate_type(repos, 'repos', list)
     for repo in repos:
         validate_repo(repo)
 
-def validate_repofile(repofile):
-    """ Validate a repository file """
-    if type(repofile) is not str:
-        raise Exception('repofile must be a string, not "%s"' % type(repofile))
-    if not os.path.exists(repofile):
-        raise Exception('repofile does not exist: "%s"' % repofile)
-
-def validate_repofiles(repofiles):
-    """ Validate paths to repofiles. """
-    if type(repofiles) is not list:
-        raise Exception('repofiles must be a list, not "%s"' % type(repofiles))
-    for repofile in repofiles:
-        validate_repofile(repofile)
-
-def validate_repodir(repodir):
-    """ Validate a repository configuration directory path """
-    if type(repodir) is not str:
-        raise Exception('repodir must be a string, not "%s"' % type(repodir))
-    if not os.path.isdir(repodir):
-        raise Exception('Path does not exist or is not a directory: "%s"' %
-                        repodir)
-
-def validate_repodirs(repodirs):
-    """ Validate directories of repository files. """
-    if type(repodirs) is not list:
-        raise Exception('repodirs must be a list, not "%s"' % type(repodirs))
-    for repodir in repodirs:
-        validate_repodir(repodir)
-
-def make_dir(dir):
+def make_dir(path):
     """ Create a directory recursively, if it does not exist. """
-    if not os.path.exists(dir):
-        log.trace('Creating directory %s' % dir)
-        os.makedirs(dir)
+    if not os.path.exists(path):
+        os.makedirs(path)
 
+# path = path to symlink
+# target = path to real file
 def symlink(path, target):
     """ Create a symbolic link.
-
     Determines if a link in the destination already exists, and if it does,
     updates its target. If the destination exists but is not a link, throws an
     exception. If the link does not exist, it is created.
@@ -208,31 +132,45 @@ def symlink(path, target):
     if not os.path.islink(path):
         if os.path.exists(path):
             raise Exception('%s exists - Cannot create symlink' % path)
-        dir = os.path.dirname(path)
-        if not os.path.exists(dir):
-            make_dir(dir)
+        path_dir = os.path.dirname(path)
+        if not os.path.exists(path_dir):
+            make_dir(path_dir)
     elif os.readlink(path) != target:
-        log.trace('Unlinking %s because its target is changing' % path)
         os.unlink(path)
-    if not os.path.lexists(path):
-        log.trace('Linking %s to %s' % (path, target))
+    if os.path.lexists(path):
+        return False
+    else:
         os.symlink(target, path)
+        return True
 
-def hardlink(path, target):
 
-   " This method creates a hardlink ... "
-   dir_link = os.path.dirname(path)
-   target_link = os.path.dirname(target)
-   #print "Linking ", path, "to ", target
-   if not os.path.exists(dir_link):
-     make_dir(dir_link)
-   if not os.path.exists(target_link):
-     make_dir(target_link)
-   log.trace('Linking %s to %s' % (path, target))
+def hardlink(source, target):
+    " This method creates a hardlink ... "
+    if source != target:
+        # ensure source exists and collect stats
+        if not os.path.exists(source):
+            raise Exception('%s does not exist - Cannot create hardlink' % source)
+        else:
+            source_stat = os.stat(source)
+        # create target dir if missing
+        target_dir = os.path.dirname(target)
+        if not os.path.exists(target_dir):
+            make_dir(target_dir)
+        # get dev and inode info for target
+        if os.path.exists(target):
+            target_dev = os.stat(target).st_dev
+            target_inode = os.stat(target).st_ino
+        else:
+            target_dev = os.stat(target_dir).st_dev
+            target_inode = None
+        if target_dev != source_stat.st_dev:
+            raise Exception('source device %s is not equal to target device %s - Cannot create hardlink' %
+                            (source_stat.st_dev, target_dev))
+        elif (target_inode is not None) and (target_inode != source_stat.st_ino):
+            os.unlink(target)
 
-   if not os.path.exists(target):
-     os.link(path, target)
-   else:
-     log.trace('Skipping %s -- it exists already' % (target))
-     #print "Skipping ", target, " -- it exists already ::: \n"
-
+        if os.path.exists(target):
+            return False
+        else:
+            os.link(source, target)
+            return True
