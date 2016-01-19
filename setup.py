@@ -6,7 +6,7 @@ def required_module(module):
 
   This function attempts to load a module, and if it fails to load, a message
   is displayed and installation is aborted. This is required because YUM and
-  createrepo are not compatible with setuptools, and pakrat cannot function
+  createrepo are not compatible with setuptools, and yumsync cannot function
   without either one of them.
   """
   try:
@@ -25,14 +25,13 @@ required_module('createrepo')
 #required_module('PyYAML')
 #required_module('pyliblzma')
 
-setup(name='pakrat',
-    version='0.9.5',
-    description='A tool for mirroring and versioning YUM repositories -- sync-repo version',
-    author='Ryan Uber & Vamegh Hedayati',
-    author_email='ru@ryanuber.com / repo@ev9.io',
-    url='https://github.com/vamegh/pakrat',
-    packages=['pakrat'],
-    scripts=['bin/sync-repo'],
-    package_data={'pakrat': ['LICENSE', 'README.md']},
-    data_files=[('/etc/sync-repo', ['config/repos.yaml', 'COPYING', 'README.md'])]
+setup(name='yumsync',
+    version='0.1.0',
+    description='A tool for mirroring and versioning YUM repositories',
+    author='Ryan Uber, Vamegh Hedayati, Jordan Wesolowski',
+    author_email='ru@ryanuber.com, repo@ev9.io, jrwesolo@gmail.com',
+    url='https://github.com/jrwesolo/yumsync',
+    packages=['yumsync'],
+    scripts=['bin/yumsync'],
+    package_data={'yumsync': ['LICENSE', 'README.md']}
 )

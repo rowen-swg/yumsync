@@ -6,7 +6,7 @@ class Progress(object):
     """ Handle progress indication using callbacks.
 
     This class will create an object that stores information about a
-    running pakrat process. It stores information about each repository
+    running yumsync process. It stores information about each repository
     being synced, including total packages, completed packages, and
     the status of the repository metadata. This makes it possible to
     display aggregated status of multiple repositories during a sync.
@@ -19,22 +19,18 @@ class Progress(object):
       """ records the time the sync started.
           and initialise blessings terminal """
       self.start = datetime.datetime.now()
-      self.prevlines = 0
       self.linecount = 0
       if sys.stdout.isatty():
-        self.term = Terminal()
-        self.height = self.term.height
-        self.width = self.term.width
-        self.mid = self.term.height / 2
-        print self.term.clear()
+          self.term = Terminal()
+          sys.stdout.write(self.term.clear())
 
     def __del__(self):
-      """ destructor - need to reset the terminal ."""
+        """ destructor - need to reset the terminal ."""
 
-      if sys.stdout.isatty():
-        print self.term.normal
-        print self.term.move(self.linecount,0)
-        sys.stdout.flush()
+        if sys.stdout.isatty():
+            sys.stdout.write(self.term.normal)
+            sys.stdout.write(self.term.move(self.linecount, 0))
+            sys.stdout.flush()
 
     def update(self, repo_id, set_total=None, pkgs_downloaded=None,
                local_pkg_exists=None, repo_metadata=None, repo_error=None):
@@ -44,8 +40,8 @@ class Progress(object):
         a repository becomes known, when any package finishes downloading,
         when repository metadata begins indexing and when it completes.
         """
-        if not self.repos.has_key(repo_id):
-            self.repos[repo_id] = {'numpkgs':0, 'dlpkgs':0, 'repomd':'-'}
+        if not repo_id in self.repos:
+            self.repos[repo_id] = {'numpkgs':0, 'dlpkgs':0, 'repomd':''}
         if set_total:
             self.repos[repo_id]['numpkgs'] = set_total
             self.totals['numpkgs'] += set_total
@@ -57,12 +53,20 @@ class Progress(object):
         if repo_error:
             self.totals['errors'] += 1
             self.errors.append((repo_id, repo_error))
-        self.formatted()
+
+        if sys.stdout.isatty():
+            self.formatted()
 
     @staticmethod
     def pct(current, total):
         """ Calculate a percentage. """
-        return int((current / float(total)) * 100)
+        val = current / float(total) * 100
+        if int(val) == 100:
+            val = 'complete'
+        else:
+            val = '{:0.1f}%'.format(val)
+
+        return val
 
     def elapsed(self):
         """ Calculate and return elapsed time.
@@ -72,144 +76,153 @@ class Progress(object):
         """
         return str(datetime.datetime.now() - self.start).split('.')[0]
 
+    def format_header(self, repos):
+        max_repo = len(max(repos, key=len))
+
+        repo = '{:<{}s}'.format('Repository', max_repo)
+        done = '{:>5s}'.format('Done')
+        total = '{:<5s}'.format('Total')
+        complete = 'Packages'
+        metadata = 'Metadata'
+        header_str = '{}  {}/{}  {}  {}'.format(repo, done, total, complete, metadata)
+
+        return header_str, len(repo), len(done), len(total), len(complete), len(metadata)
+
     def format_line(self, reponame, package_counts, percent, repomd):
         """ Return a string formatted for output.
 
         Since there is a common column layout in the progress indicator, we can
         we can implement the printf-style formatter in a function.
         """
-        return '%-15s  %-15s  %-10s  %s' % (reponame, package_counts, percent,
-                                            repomd)
+        return '{}  {}  {}  {}'.format(reponame, package_counts, percent, repomd)
 
-    def represent_repo_pkgs(self, repo_id):
+    def represent_repo_pkgs(self, repo_id, a, b):
         """ Format the ratio of packages in a repository. """
         numpkgs = self.repos[repo_id]['numpkgs']
         dlpkgs  = self.repos[repo_id]['dlpkgs']
-        return self.represent_pkgs(dlpkgs, numpkgs)
+        return self.represent_pkgs(dlpkgs, numpkgs, a, b)
 
-    def represent_total_pkgs(self):
+    def represent_total_pkgs(self, a, b):
         """ Format the total number of packages in all repositories. """
         numpkgs = self.totals['numpkgs']
         dlpkgs  = self.totals['dlpkgs']
-        return self.represent_pkgs(dlpkgs, numpkgs)
+        return self.represent_pkgs(dlpkgs, numpkgs, a, b)
 
-    def represent_pkgs(self, dlpkgs, numpkgs):
+    def represent_pkgs(self, dlpkgs, numpkgs, a, b):
         """ Represent a package ratio.
 
         This will display nothing if the number of packages is 0 or unknown, or
         typical done/total if total is > 0.
         """
         if numpkgs == 0:
-            return '%6s%10s' % ('-', ' ')
+            return '{:^{}s}'.format('-', a + b + 1)
         else:
-            return '%5s/%-10s' % (dlpkgs, numpkgs)
+            return '{0:>{2}}/{1:<{3}}'.format(dlpkgs, numpkgs, a, b)
 
-    def represent_repo_percent(self, repo_id):
+
+    def represent_repo_percent(self, repo_id, length):
         """ Display the percentage of packages downloaded in a repository. """
         numpkgs = self.repos[repo_id]['numpkgs']
         dlpkgs  = self.repos[repo_id]['dlpkgs']
-        return self.represent_percent(dlpkgs, numpkgs)
+        return self.represent_percent(dlpkgs, numpkgs, length)
 
-    def represent_total_percent(self):
+    def represent_total_percent(self, length):
         """ Display the overall percentage of downloaded packages. """
         numpkgs = self.totals['numpkgs']
         dlpkgs  = self.totals['dlpkgs']
-        return self.represent_percent(dlpkgs, numpkgs)
+        return self.represent_percent(dlpkgs, numpkgs, length)
 
-    def represent_percent(self, dlpkgs, numpkgs):
+    def represent_percent(self, dlpkgs, numpkgs, length):
         """ Display a percentage of completion.
 
         If the number of packages is unknown, nothing is displayed. Otherwise,
         a number followed by the percent sign is displayed.
         """
         if numpkgs == 0:
-            return '-'
+            return '{:^{}s}'.format('-', length)
         else:
-            return '%s%%' % self.pct(dlpkgs, numpkgs)
+            return '{:^{}s}'.format(self.pct(dlpkgs, numpkgs), length)
 
     def represent_repomd(self, repo_id):
         """ Display the current status of repository metadata. """
         return self.repos[repo_id]['repomd']
 
-    def represent_repo(self, repo_id):
+    def represent_repo(self, repo_id, h1, h2, h3, h4, h5):
         """ Represent an entire repository in one line.
 
         This makes calls to the other methods of this class to create a
         formatted string, which makes nice columns.
         """
-        if self.repos[repo_id].has_key('error'):
-            packages = '     error'
-            percent  = ''
-            metadata = ''
+
+        repo = '{:<{}s}'.format(repo_id, h1)
+
+        if 'error' in self.repos[repo_id]:
+            packages = '{:^{}s}'.format('error', h2 + h3 + 1)
+            percent  = ' ' * h4
+            metadata = ' ' * h5
         else:
-            packages = self.represent_repo_pkgs(repo_id)
-            percent  = self.represent_repo_percent(repo_id)
+            packages = self.represent_repo_pkgs(repo_id, h2, h3)
+            percent  = self.represent_repo_percent(repo_id, h4)
             metadata = self.represent_repomd(repo_id)
-        return self.format_line(repo_id, packages, percent, metadata)
+        return self.format_line(repo, packages, percent, metadata)
 
-    def emit(self, line='', color=''):
-        with self.term.location(0,self.prevlines):
-          coloured_line=''
-          if (color):
-            coloured_line=getattr(self.term, color)
-          sys.stdout.write('%s\n' % coloured_line+line)
-          print self.term.clear_eol()
-
-        self.prevlines += len(line.split('\n'))
+    def emit(self, line='', color=None):
+        numlines = len(line.split('\n'))
+        self.linecount += numlines
+        with self.term.location(x=0, y=self.linecount - numlines):
+            colored_line=''
+            if color and hasattr(self.term, color):
+                colored_line=getattr(self.term, color)
+            sys.stdout.write('{}{}{}'.format(colored_line, line, self.term.normal))
+            sys.stdout.write(self.term.clear_eol())
 
     def formatted(self):
         """ Print all known progress data in a nicely formatted table.
 
         This method keeps track of what it has printed before, so that it can
         backtrack over the console screen, clearing out the previous flush and
-        rinting out a new one. This method is called any time any value is
+        printing out a new one. This method is called any time any value is
         updated, which is what gives us that real-time feeling.
 
-        Unforutnately, the YUM library calls print directly rather than just
+        Unfortunately, the YUM library calls print directly rather than just
         throwing exceptions and handling them in the presentation layer, so
-        this means that pakrat's output will be slightly flawed if YUM prints
+        this means that yumsync's output will be slightly flawed if YUM prints
         something directly to the screen from a worker process.
         """
-        if not sys.stdout.isatty():
-            return
-
-        self.prevlines = 1  # reset line counter
-        self.linecount = 3  # reset line counter
-        header = self.format_line('repo', '%12s/%-8s' % ('done', 'total'),
-                                  'complete', 'metadata')
-        self.emit('\n%s' % header, "green")
-        self.emit(('-' * len(header)), "bright_green")
-        self.linecount += 2
 
         # Remove repos with errors from totals
         if self.totals['errors'] > 0:
             for repo_id, error in self.errors:
-                if repo_id in self.repos.keys():
-                    self.totals['dlpkgs'] -= self.repos[repo_id]['dlpkgs']
-                    self.totals['numpkgs'] -= self.repos[repo_id]['numpkgs']
-                    #del self.repos[repo_id]
-                    self.repos[repo_id]['error'] = True
+                if repo_id in self.repos:
+                    if not 'error' in self.repos[repo_id]:
+                        self.totals['dlpkgs'] -= self.repos[repo_id]['dlpkgs']
+                        self.totals['numpkgs'] -= self.repos[repo_id]['numpkgs']
+                        self.repos[repo_id]['error'] = True
 
-        for repo_id in self.repos.keys():
-            self.emit(self.represent_repo(repo_id),"blue")
-            self.linecount += 1
+        self.linecount = 0  # reset line counter
+        header, h1, h2, h3, h4, h5 = self.format_header(self.repos.keys())
+        self.emit('-' * len(header))
+        self.emit('%s' % header, "green")
+        self.emit('-' * len(header))
 
-        self.emit(('-' * len(header)), "bright_green")
-        self.emit()
-        self.emit(self.format_line('total:', self.represent_total_pkgs(),
-                                   self.represent_total_percent(), ''),"yellow")
-        self.emit(('-' * len(header)), "yellow")
-        self.emit()
-        self.linecount += 5
+        for repo_id in sorted(self.repos):
+            self.emit(self.represent_repo(repo_id, h1, h2, h3, h4, h5), "blue")
+
+        self.emit(('-' * len(header)))
+        self.emit(self.format_line('{:<{}s}'.format('Total', h1), self.represent_total_pkgs(h2, h3),
+                                   self.represent_total_percent(h4), ''), "yellow")
+        self.emit(('-' * len(header)))
 
         # Append errors to output if any found.
         if self.totals['errors'] > 0:
-            self.emit('errors(%d):' % self.totals['errors'],"red")
+            self.emit('Errors ({}):'.format(self.totals['errors']), "red")
             for repo_id, error in self.errors:
-                self.emit(error,"red")
-                self.linecount += 1
-            self.emit()
-            self.linecount += 2
+                self.emit('{}: {}'.format(repo_id, error), "red")
+
+        with self.term.location(x=0, y=self.linecount):
+            sys.stdout.write(self.term.clear_eos())
+
+        sys.stdout.flush()
 
 class YumProgress(object):
     """ Creates an object for passing to YUM for status updates.
@@ -249,7 +262,7 @@ class YumProgress(object):
     def update(self, size):
         """ Called during the course of a download.
 
-        Pakrat does not use this for anyting, but we'll be a good neighbor and
+        Yumsync does not use this for anything, but we'll be a good neighbor and
         pass the data on to the user callback.
         """
         self.callback('download_update', size)
@@ -268,7 +281,7 @@ class YumProgress(object):
 class ProgressCallback(object):
     """ Register our own callback for progress indication.
 
-    This class allows pakrat to stuff a user callback into an object before
+    This class allows yumsync to stuff a user callback into an object before
     forking a thread, so that we don't have to keep making calls to multiple
     callbacks everywhere.
     """
@@ -303,6 +316,10 @@ class ProgressCallback(object):
         """ Update the status of metadata creation. """
         self.send(repo_id, 'repo_metadata', value)
 
+    def repo_group_data(self, repo_id, value):
+        """ Update the status of group data creation. """
+        self.send(repo_id, 'repo_group_data', value)
+
     def repo_init(self, repo_id, numpkgs):
         """ Share the total packages in a repository, when known. """
         self.send(repo_id, 'repo_init', numpkgs)
@@ -318,3 +335,11 @@ class ProgressCallback(object):
     def local_pkg_exists(self, repo_id, pkgname):
         """ Called when a download will be skipped because it already exists """
         self.send(repo_id, 'local_pkg_exists', pkgname)
+
+    def delete_pkg(self, repo_id, pkgname):
+        """ Called when a package is deleted from a repository """
+        self.send(repo_id, 'delete_pkg', pkgname)
+
+    def link_pkg(self, repo_id, pkgname):
+        """ Called when a package is linked from a local repository """
+        self.send(repo_id, 'link_pkg', pkgname)

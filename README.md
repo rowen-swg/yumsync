@@ -1,503 +1,160 @@
+**_This is a fork of an [updated version](https://github.com/vamegh/pakrat) of the pakrat libraries by [Vamegh Hedayati](https://github.com/vamegh), forked from the [original](https://github.com/ryanuber/pakrat) by [Ryan Uber](https://github.com/ryanuber). It is not backwards-compatible._**
 
-What this is:
--------------
-  * This is an updated version of the pakrat libraries, forked from the original By Ryan Uber.
-
-What this supports:
--------------------
-  * Building yum repos for Centos 5
-  * More descriptive approach to building repositories.
-  * Creating repositories for custom local rpms (local repo creation)
-  * Stable and Latest repo paths created -- stable linking to a known good repo date.
-  * hard linking / symlinking paths -- this allows to maintain repository state by deleting files as hardlinks maintain deleted files
-  * output formatting in colour and handled by the blessings library - real time progress indicator seems to be working properly now.
-  * new command line tool called sync-repo.
-
-What this does not support:
----------------------------
-  * The original pakrat command line tool - this has now been replaced with sync-repo.
-  * Combined Repository metadata
-
-Most of the changes made have been to:
---------------------------------------
-
-```
-  * pakrat/__init__.py
-  * pakrat/repo.py
-  * pakrat/util.py
-  * bin/sync-repo (pakrat cli no longer exists)
-```
-
-Known Issues:
--------------
-
-There is a lot of room for improvement in the updates applied so far,
-centos5 mapping is a bit pants, the repo osver has to be marked as centos5 or 5 for it to use sha hashing.
-If you fork from this and make any improvements let me know and I will merge it into this version as well.
-
-Sync-repo usage:
-----------------
-
-## Introduction
-
-sync-repo is a command line tool for synchronising remote yum repositories and creating new local yum repositories.
-
-
-## Usage
-
-repsync usage is as follows:
-
-
-``` 
-./sync-repo -c ../config/repos.yaml
-
-Usage: sync-repo [options]
-
-Repositories are read in from a yaml config default is /etc/sync-repo/repos.yaml
-the all or name options should be specified to update repositories
-the name option can be repeated several times to update multiple repos
-the show option will display all available repo names that can be called.
-
-Options:
-  --version             show program's version number and exit
-  -h, --help            show this help message and exit
-  -a, --all             all of the repositories listed in the config file will
-                        be updated - either this or the name option must be
-                        specified
-  -c CONFIG, --config=CONFIG
-                        Provide a custom configuration file, defaults to
-                        /etc/sync-repo/repos.yaml if none provided
-  -d DIRECTORY, --directory=DIRECTORY
-                        Set the base path to store the repositories - default
-                        read from config file. This overrides config file
-  -n NAME, --name=NAME  The name of a YUM repository as contained within the
-                        config (repeatable) either this or the all option must
-                        be specified
-  -s, --show            Display all available YUM repositories as contained
-                        within the config
-
-```
-
-The repositories are read in from repos.yaml
-
-The syntax of repos.yaml is as follows:
-
-```
-basepath: "/var/www/html/repos"
-
-repos:
-  repo-zabbix7:
-    name: "zabbix"
-    url: "http://repo.zabbix.com/zabbix/2.2/rhel/7/x86_64"
-    arch: "x86_64"
-    osver: "centos7"
-    stable_release: "20150320"
-    link_type: hardlink
-    delete: true
-  repo-local-test:
-    name: "local-test"
-    arch: "x86_64"
-    osver: "centos6"
-    stable_release: "20150325"
-    repo_type: "local"
-    link_type: symlink
-    delete: false
-```
-
-The basepath will default to /var/www/html, this value must be set to the base location where all repositories will be managed from.
-
-The repos stanza, then requires a unique identifier, so for example repo-zabbix7 - this name is used to select the repository on a command line run as shown above, it is not used by pakrat or sync-repo as anything else other than a unique identifier.
-
-* name:
-The name field should be set to the name of the repository, this does not need to be unique.
-
-* repo_type:
-This must be set to local if the repo_type is a local path that needs to be converted and versioned into a proper functioning yum repository.
-
-* url:
-The url should be set if the repository in question is a remote repository.
-
-* arch:
-this must be set and indicates the arch of the repo, this is used to determine the repo path and can be x86_64, noarch or i386 (this can be set to anything though)
-
-* osver:
-This must be set. For centos5 repos to work and to have the correct hash applied this must be set to centos5 or 5 (currently the check employed is very basic)
-
-* stable_release:
-This again must be set and should be set to a valid versioned release, the format is as as follows: YYYYMMDD, all repos are datestamp versioned / archived in this method.
-
-* link_type:
-This supports two different link types, either symlink or hardlink, if hardlink is set then rpm files are hardlinked but the latest and stable directories are symlinked -- this allows for repositories to be tracked as they change so as files are deleted remotely they can be tracked locally (hardlinking will keep the file in previous versioned repos while newer versions can have the files deleted)
-This defaults to symlink if not specified.
-
-* delete:
-This can be either true or false, if not set it defaults to false and if link_type is set to symlink this option is ignored and set to false.
-This allows the repo packages to be deleted as packages are deleted on the remote repo. This is only useful for hardlinked repos.
-
-### Local Repositories
-The Local method listed above obviously expects the rpms to be available locally, but it also requires the path structure to match the remote method path creation and for the rpms to be available in that path.
-
-Lets say the repos.yaml states:
-
-```
-basepath: "/var/www/html/repos"
-repos:
-  repo-c6-64-local-test:
-    name: "local-test"
-    arch: "x86_64"
-    osver: "centos6"
-    stable_release: "22042015"
-    repo_type: "local"
-```
-
-The path structure is as follows:
-
-```
-<base_path>/<name>/<osver>/<arch>/
-```
-
-Given the example above, the local method will expect the rpms to be in :
-
-```
-/var/www/html/repos/local-test/centos6/x86_64/*.rpm
-```
-
-If the path doesnt exist it will create the path structure but cannot create repo data, it will inform you of the path it expects the rpms to be in. Once the rpms are in place sync-repo can make it into a rpm repository and control it.
-
-
-### Remote Repositories
-
-For a remote repository, it works the same way, except, it sends it to the following path:
-
-```
-  $basepath/$name/$osver/$arch
-```
-
-Taking zabbix from the yaml example above, the directory structure would be as follows:
-
-```
-/var/www/html/repos/zabbix2.2:
-
-# tree -d
-.
-├── centos6
-│   ├── 20150407
-│   │   ├── repodata
-│   │   └── x86_64 -> ../x86_64
-│   ├── 20150408
-│   │   ├── repodata
-│   │   └── x86_64 -> ../x86_64
-│   ├── 20150413
-│   │   ├── repodata
-│   │   └── x86_64 -> ../x86_64
-│   ├── 20150420
-│   │   ├── repodata
-│   │   └── x86_64 -> ../x86_64
-│   ├── latest -> 20150420
-│   ├── stable -> 20150407
-│   └── x86_64
-└── centos7
-    ├── 20150407
-    │   ├── repodata
-    │   └── x86_64 -> ../x86_64
-    ├── 20150408
-    │   ├── repodata
-    │   └── x86_64 -> ../x86_64
-    ├── 20150413
-    │   ├── repodata
-    │   └── x86_64 -> ../x86_64
-    ├── 20150420
-    │   ├── repodata
-    │   └── x86_64 -> ../x86_64
-    ├── latest -> 20150420
-    ├── stable -> 20150407
-    └── x86_64
-
-```
-
-
-ORIGINAL INSTRUCTIONS
-----------------------
-
-Pakrat
+Yumsync
 -------
 
-A tool to mirror and version YUM repositories
-The modrepo forked version extends the paths created when versioning and enables a stable link,
-so that a latest and stable version can be set for each repo.
+Yumsync is a tool used to mirror yum repositories and optionally version the repository metadata. This will enable the ability of taking frequent snapshots of a repository without worrying about wasted space from duplicate packages.
 
-What does it do?
-----------------
+What this supports
+-------------------
 
-* You invoke pakrat and pass it some information about your repositories.
-* Pakrat mirrors the YUM repositories, and optionally arranges the data in a
-  versioned manner.
+* Mirroring remote repositories
+* Creating local repositories (from local packages)
+* User-defined folder structure for public access through Nginx or equivalent
+* Ability to create versioned snapshots of repository metadata
+* Stable and latest links for versioned snapshots
+* Symbolic or hard linking for versioned snapshots
+* Hard linking allows files to be deleted without affecting other versioned snapshots
+* Friendly visual output provided by [blessings](https://pypi.python.org/pypi/blessings) when running under a TTY
+* Logs of sync activity are stored alongside the the repository metadata - this provides easy reporting and troubleshooting
 
-It is easiest to demonstrate what Pakrat does by shell example:
-```
-$ pakrat --repodir /etc/yum.repos.d
+Usage Types
+-----------
 
-  repo              done/total       complete    metadata
-  -------------------------------------------------------
-  base               357/6381        5%          -
-  updates            112/1100        10%         -
-  extras              13/13          100%        complete
+Yumsync can be used in two ways. The easiest would be the CLI tool `yumsync`. The second would be by building your own tool and using the Yumsync libraries. If the second method is more your style, please use the [Yumsync CLI](bin/yumsync) as a guide.
 
-  total:             482/7494        6%
+CLI Usage
+---------
 
-```
-
-Features
---------
-
-* Mirror repository packages from remote sources
-* Optional repository versioning with user-defined version schema
-* Mirror YUM group metadata
-* Supports standard YUM configuration files
-* Supports YUM configuration directories (repos.d style)
-* Supports command-line repos for zero-configuration (`--name` and `--baseurl`)
-* Command-line interface with real-time progress indicator
-* Parallel repository downloads for maximum effeciency
-* Syslog integration
-* Supports user-specified callbacks
-
-Installation
-------------
-
-Pakrat is available in PyPI as `pakrat`. That means you can install it with
-easy_install:
+The CLI tool us called `yumsync`. This tool will provide the functionality for most users.
 
 ```
-# easy_install pakrat
+usage: yumsync [-h] [-o DIRECTORY] -c CONFIG [-n NAME] [-s]
+
+Sync YUM repositories with optional versioned snapshots.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o DIRECTORY, --directory DIRECTORY
+                        Path to output directory to store repositories,
+                        defaults to current directory
+  -c CONFIG, --config CONFIG
+                        Path to YAML config file describing repositories
+  -n NAME, --name NAME  Name of YUM repository (repeatable) from config file
+                        to sync instead of all available
+  -s, --show            Only show what repositories would be synced
 ```
 
-*NOTE*
-Installation from PyPI should work on any Linux. However, since Pakrat depends
-on YUM and Createrepo, which are not available in PyPI, these dependencies will
-not be detected as missing. The easiest install path is to install on some kind
-of RHEL like so:
+The repository configuration is read from a yaml config file. Below is a minimal example of what a config file should look like:
 
-```
-# yum -y install createrepo
-# easy_install pakrat
-```
-
-How to use it
--------------
-
-The simplest possible example would involve mirroring a YUM repository in a
-very basic way, using the CLI:
-
-```
-$ pakrat --name centos --baseurl http://mirror.centos.org/centos/6/os/x86_64
-$ tree -d centos
-centos/
-├── Packages
-└── repodata
+```yaml
+---
+centos/6/os/x86_64:
+    mirrorlist: 'http://mirrorlist.centos.org/?release=6&repo=os&arch=x86_64'
+    gpgkey: 'http://mirror.centos.org/centos/6/os/x86_64/RPM-GPG-KEY-CentOS-6'
+centos/6/extras/x86_64:
+    mirrorlist: 'http://mirrorlist.centos.org/?release=6&repo=extras&arch=x86_64'
+    gpgkey: 'http://mirror.centos.org/centos/6/os/x86_64/RPM-GPG-KEY-CentOS-6'
+centos/6/updates/x86_64:
+    mirrorlist: 'http://mirrorlist.centos.org/?release=6&repo=updates&arch=x86_64'
+    gpgkey: 'http://mirror.centos.org/centos/6/os/x86_64/RPM-GPG-KEY-CentOS-6'
 ```
 
-A slightly more complex example would be to version the same repository. To
-do this, you must pass in a version number. An easy example is to mirror a
-repository daily.
-```
-$ pakrat \
-    --repoversion $(date +%Y-%m-%d) \
-    --name centos \
-    --baseurl http://mirror.centos.org/centos/6/os/x86_64
-$ tree -d centos
-centos/
-├── 2013-07-29
-│   ├── Packages -> ../Packages
-│   └── repodata
-├── latest -> 2013-07-29
-└── Packages
-```
+All available options per repo hash:
 
-If you were to configure the above to command to run on a daily schedule,
-eventually you would see something like:
-```
-$ tree -d centos
-centos/
-├── 2013-07-29
-│   ├── Packages -> ../Packages
-│   └── repodata
-├── 2013-07-30
-│   ├── Packages -> ../Packages
-│   └── repodata
-├── 2013-07-31
-│   ├── Packages -> ../Packages
-│   └── repodata
-├── latest -> 2013-07-31
-└── Packages
-```
+Option | Type | Default  | Description
+------ | ---- | -------- | -----------
+`baseurl` | `string`, `array` | `none` | One or more baseurls that will be used to retrieve the desired respository.
+`checksum` | `string` | `sha256` | What type of checksum to use when generating repo metadata. `sha256` is generally what you want. If the repository will be consumed by a CentOS 5 machine, use `sha1`.
+`combined_metadata` | `boolean` | `false` | If using versioned snapshots, also create metadata in the root of the mirrored repository for all available packages.
+`delete` | `boolean` | `false` | Whether or not to delete packages that have been synced, but are no longer present in the repository being mirrored (local or remote). Ignored when using `link_type` of `symlink`.
+`gpgkey` | `string` | `none` | Url (if local, prefix with `file://`) to the GPG key to store along side the mirror.
+`link_type` | `string` | `symlink` | Type of link used when creating versioned snapshots or when linking to local packages. Valid values are `hardlink` or `symlink`.
+`local_dir` | `string` | `none` | Path to a local folder that contains rpms. These rpms will be used to create a local repository. Supports versioned or unversioned, symlinks or hardlinks.
+`mirrorlist` | `string` | `none` | Mirrorlist that will be used to retrieve the desired repository.
+`stable` | `string` | `none` | If using versioned snapshots, the version that should be symlinked to `stable` in the mirrored repository.
+`version` | `string` | `%Y/%m/%d` | String used by `strftime` to format the current date and time. Please refer to [strftime.org](http://strftime.org) for details.
 
-You can also opt to have a combined repository for each of your repos. This is
-useful because you could simply point your clients to the root of your
-repository, and they will have access to its complete history of RPMs. You can
-do this by passing in the `--combined` option when versioning repositories.
+### Local Repositories
 
-Pakrat is also capable of handling multiple YUM repositories in the same mirror
-run. If multiple repositories are specified, each repository will get its own
-download thread. This is handy if you are syncing from a mirror that is not
-particularly quick. The other repositories do not need to wait on it to finish.
-```
-$ pakrat \
-    --repoversion $(date +%Y-%m-%d) \
-    --name centos --baseurl http://mirror.centos.org/centos/6/os/x86_64 \
-    --name epel --baseurl http://dl.fedoraproject.org/pub/epel/6/x86_64
-$ tree -d centos epel
-centos/
-├── 2013-07-29
-│   ├── Packages -> ../Packages
-│   └── repodata
-├── latest -> 2013-07-29
-└── Packages
-epel/
-├── 2013-07-29
-│   ├── Packages -> ../Packages
-│   └── repodata
-├── latest -> 2013-07-29
-└── Packages
+Local repositories are designated by the option `local_dir`. The local directory, as well as the packages inside, must be accessible by `yumsync`. `baseurl` and `mirrorlist` are ignored for local repositories. If hard linking is used, ensure that the local packages exist on the same device as the output directory. `yumsync` will throw an error otherwise due to the requirements of hard links.
+
+### Example of Directory Structure
+
+Output directory is `/data` for these examples. Directory tree is truncated to minimize verbosity.
+
+```bash
+# versioned, symlink
+/data
+├── centos_6_extras_x86_64
+│   ├── 2016
+│   │   └── 01
+│   │       └── 19
+│   │           ├── packages -> ../../../packages
+│   │           ├── repodata
+│   │           └── sync.log
+│   ├── RPM-GPG-KEY-CentOS-6
+│   ├── latest -> 2016/01/19
+│   └── packages
+└── public
+    └── centos
+        └── 6
+            └── extras
+                └── x86_64 -> ../../../../centos_6_extras_x86_64
 ```
 
-Configuration can also be passed in from YUM configuration files. See the CLI
-`--help` for details.
-
-Pakrat also exposes its interfaces in plain python for integration with other
-projects and software. A good starting point for using Pakrat via the python
-API is to take a look at the `pakrat.sync` method. The CLI calls this method
-almost exclusively, so it should be fairly straightforward in its usage (all
-arguments are named and optional):
-```
-pakrat.sync(basedir, objrepos, repodirs, repofiles, repoversion, delete, callback)
-```
-
-Another handy python method is `pakrat.repo.factory`, which creates YUM
-repository objects so that no file-based configuration is needed.
-```
-pakrat.repo.factory(name, baseurls=None, mirrorlist=None)
-```
-
-User-defined callbacks
-----------------------
-
-Since the YUM team did a decent job at externalizing the progress data,
-pakrat will return the favor by exposing the same data, plus some extras
-via user callbacks.
-
-A user callback is a simple class that implements some methods for handling
-received data. It is not mandatory to implement any of the methods.
-
-A few of the available user callbacks in pakrat come directly from the
-`urlgrabber` interface (namely, any user callback beginning with `download_`.
-The other methods are called by pakrat, which explains why the interfaces
-are varied.
-
-The supported user callbacks are listed in the following method signatures:
-```python
-""" Called when the number of packages a repository contains becomes known """
-repo_init(repo_id, num_pkgs)
-
-""" Called when 'createrepo' begins running and when it completes """
-repo_metadata(repo_id, status)
-
-""" Called when a repository finishes downloading all packages """
-repo_complete(repo_id)
-
-""" Called whenever an exception is thrown from a repo thread """
-repo_error(repo_id, error)
-
-""" Called when a package becomes known as 'already downloaded' """
-local_pkg_exists(repo_id, pkgname)
-
-""" Called when a file begins downloading (non-exclusive) """
-download_start(repo_id, fpath, url, fname, fsize, text)
-
-""" Called during downloads, 'size' is bytes downloaded """
-download_update(repo_id, size)
-
-""" Called when a file download completes, 'size' is file size in bytes """
-download_end(repo_id, size)
+```bash
+# versioned, hardlink
+/data
+├── centos_6_extras_x86_64
+│   ├── 2016
+│   │   └── 01
+│   │       └── 19
+│   │           ├── packages # files inside are hardlinked
+│   │           ├── repodata
+│   │           └── sync.log
+│   ├── RPM-GPG-KEY-CentOS-6
+│   ├── latest -> 2016/01/19
+│   └── packages
+└── public
+    └── centos
+        └── 6
+            └── extras
+                └── x86_64 -> ../../../../centos_6_extras_x86_64
 ```
 
-The following is a basic example of how to use user callbacks in pakrat.
-Note that an instance of the class is passed into the `pakrat.sync()` call
-as the named argument `callback`.
-
-```python
-import pakrat
-
-class mycallback(object):
-    def log(self, msg):
-        with open('log.txt', 'a') as logfile:
-            logfile.write('%s\n' % msg)
-
-    def repo_init(self, repo_id, num_pkgs):
-        self.log('Found %d packages in repo %s' % (num_pkgs, repo_id))
-
-    def download_start(self, repo_id, _file, url, basename, size, text):
-        self.fname = basename
-
-    def download_end(self, repo_id, size):
-        if self.fname.endswith('.rpm'):
-            self.log('%s, repo %s, size %d' % (self.fname, repo_id, size))
-
-    def repo_metadata(self, repo_id, status):
-        self.log('Metadata for repo %s is now %s' % (repo_id, status))
-
-myrepo = pakrat.repo.factory(
-    'extras',
-    mirrorlist='http://mirrorlist.centos.org/?repo=extras&release=6&arch=x86_64'
-)
-
-mycallback_instance = mycallback()
-pakrat.sync(objrepos=[myrepo], callback=mycallback_instance)
+```bash
+# versioned, symlink, combined metadata
+/data
+├── centos_6_extras_x86_64
+│   ├── 2016
+│   │   └── 01
+│   │       └── 19
+│   │           ├── packages -> ../../../packages
+│   │           ├── repodata
+│   │           └── sync.log
+│   ├── RPM-GPG-KEY-CentOS-6
+│   ├── latest -> 2016/01/19
+│   ├── packages
+│   └── repodata
+└── public
+    └── centos
+        └── 6
+            └── extras
+                └── x86_64 -> ../../../../centos_6_extras_x86_64
 ```
 
-If you run the above example, and then take a look in the `log.txt` file (which
-the user callbacks should have created), you will see something like:
-
+```bash
+# unversioned
+/data
+├── centos_6_extras_x86_64
+│   ├── RPM-GPG-KEY-CentOS-6
+│   ├── packages
+│   ├── repodata
+│   └── sync.log
+└── public
+    └── centos
+        └── 6
+            └── extras
+                └── x86_64 -> ../../../../centos_6_extras_x86_64
 ```
-Found 13 packages in repo extras
-bakefile-0.2.8-3.el6.centos.x86_64.rpm, repo extras, size 256356
-centos-release-cr-6-0.el6.centos.x86_64.rpm, repo extras, size 3996
-centos-release-xen-6-2.el6.centos.x86_64.rpm, repo extras, size 4086
-freenx-0.7.3-9.4.el6.centos.x86_64.rpm, repo extras, size 99256
-jfsutils-1.1.13-9.el6.x86_64.rpm, repo extras, size 244104
-nx-3.5.0-2.1.el6.centos.x86_64.rpm, repo extras, size 2807864
-opennx-0.16-724.el6.centos.1.x86_64.rpm, repo extras, size 1244240
-python-empy-3.3-5.el6.centos.noarch.rpm, repo extras, size 104632
-wxBase-2.8.12-1.el6.centos.x86_64.rpm, repo extras, size 586068
-wxGTK-2.8.12-1.el6.centos.x86_64.rpm, repo extras, size 3081804
-wxGTK-devel-2.8.12-1.el6.centos.x86_64.rpm, repo extras, size 1005036
-wxGTK-gl-2.8.12-1.el6.centos.x86_64.rpm, repo extras, size 31824
-wxGTK-media-2.8.12-1.el6.centos.x86_64.rpm, repo extras, size 38644
-Metadata for repo extras is now working
-Metadata for repo extras is now complete
-```
-
-Building an RPM
----------------
-
-Pakrat can be easily packaged into an RPM.
-
-1. Download a release and name the tarball `pakrat.tar.gz`:
-```
-curl -o pakrat.tar.gz -L https://github.com/ryanuber/pakrat/archive/master.tar.gz
-```
-
-2. Build it into an RPM:
-```
-rpmbuild -tb pakrat.tar.gz
-```
-
-What's missing
---------------
-
-* Unit tests (preliminary work done in unit_test branch)
-
-Thanks
-------
-
-Thanks to [Keith Chambers](https://github.com/keithchambers) for help with the
-ideas and useful input on CLI design.
