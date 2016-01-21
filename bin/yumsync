@@ -158,23 +158,23 @@ def scan_yaml(**rawrepo):
 
 # load configuration
 def load_config():
-    with open(REPOFILE, 'r') as f:
-        try:
+    try:
+        with open(REPOFILE, 'r') as f:
             config = yaml.safe_load(f)
             if type(config) != dict: raise SyntaxError
             return config
-        except IOError as e:
-            log("I/O error({0}): {1}".format(e.errno, e.strerror))
-            sys.exit(1)
-        except SyntaxError as e:
-            log('configuration file needs to resolve to a dictionary (hash)')
-            sys.exit(1)
-        except yaml.YAMLError as e:
-            log('unable to parse configuration file')
-            if hasattr(e, 'problem_mark'):
-                mark = e.problem_mark
-                log('Error at Line %d, column %d' % (mark.line+1, mark.column+1))
-            sys.exit(1)
+    except IOError as e:
+        log("I/O error({0}): {1}".format(e.errno, e.strerror))
+        sys.exit(1)
+    except SyntaxError as e:
+        log('configuration file needs to resolve to a dictionary (hash)')
+        sys.exit(1)
+    except yaml.YAMLError as e:
+        log('unable to parse configuration file')
+        if hasattr(e, 'problem_mark'):
+            mark = e.problem_mark
+            log('Error at Line %d, column %d' % (mark.line+1, mark.column+1))
+        sys.exit(1)
 
 # check repos passed on command line
 def check_cmdline_repos(**rawrepo):
