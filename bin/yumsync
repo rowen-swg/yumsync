@@ -164,7 +164,7 @@ def load_config():
             if type(config) != dict: raise SyntaxError
             return config
     except IOError as e:
-        log("I/O error({0}): {1}".format(e.errno, e.strerror))
+        log("{0}: {1}".format(REPOFILE, e.strerror))
         sys.exit(1)
     except SyntaxError as e:
         log('configuration file needs to resolve to a dictionary (hash)')
