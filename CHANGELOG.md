@@ -1,6 +1,11 @@
 Yumsync CHANGELOG
 =================
 
+v0.1.2 (2016-01-21)
+-------------------
+
+* Fix metadata generate for combined metadata (was referencing packages in the versioned directory)
+
 v0.1.1 (2016-01-20)
 -------------------
 

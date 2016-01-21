@@ -76,15 +76,6 @@ def create_metadata(repo, packages=None, comps=None, checksum=None):
     if comps and os.path.exists(groupdir):
         shutil.rmtree(groupdir)
 
-def create_combined_metadata(repo, package_dir, comps=None, checksum=None):
-    """ Creates YUM metadata for the entire Packages directory.
-
-    When used with versioning, this creates a combined repository of all
-    packages ever synced for the repository.
-    """
-    combined_repo = set_path(repo, package_dir)
-    create_metadata(combined_repo, None, comps, checksum)
-
 def retrieve_group_comps(repo):
     """ Retrieve group comps XML data from a remote repository.
 
@@ -167,7 +158,8 @@ def localsync(repo, dest, local_dir, checksum, version, stable, link_type, delet
 
     if version:
         if combine:
-            create_combined_metadata(repo, package_dir, None, checksum)
+            repo = set_path(repo, package_dir)
+            create_metadata(repo, pkglist, None, checksum)
         elif os.path.exists(os.path.join(dest, 'repodata')):
             # At this point the combined metadata is stale, so remove it.
             shutil.rmtree(os.path.join(dest, 'repodata'))
@@ -294,7 +286,8 @@ def sync(repo, dest, checksum, version, stable, link_type, delete, combine=False
 
     if version:
         if combine:
-            create_combined_metadata(repo, package_dir, comps, checksum)
+            repo = set_path(repo, package_dir)
+            create_metadata(repo, pkglist, comps, checksum)
         elif os.path.exists(os.path.join(dest, 'repodata')):
             # At this point the combined metadata is stale, so remove it.
             shutil.rmtree(os.path.join(dest, 'repodata'))

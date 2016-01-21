@@ -26,7 +26,7 @@ required_module('createrepo')
 #required_module('pyliblzma')
 
 setup(name='yumsync',
-    version='0.1.1',
+    version='0.1.2',
     description='A tool for mirroring and versioning YUM repositories',
     author='Ryan Uber, Vamegh Hedayati, Jordan Wesolowski',
     author_email='ru@ryanuber.com, repo@ev9.io, jrwesolo@gmail.com',
