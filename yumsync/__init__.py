@@ -6,7 +6,7 @@ import urlparse
 from yumsync import util, repo, progress
 from yumsync.log import log
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 def localsync(repos={}, basedir=None, repoversion=None, link_type=None, callback=None):
   """ Create Repo Metadata from Local package repo
