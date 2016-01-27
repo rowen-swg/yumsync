@@ -73,7 +73,7 @@ class mycallback(object):
         self.print_linked(repo_id)
         self.log('%s: package download complete' % repo_id, repo_id=repo_id)
 
-    def download_start(self, repo_id, _file, url, basename, size, text):
+    def download_start(self, repo_id, filename, url, basename, size, text):
         self.print_skipped(repo_id)
         self.print_linked(repo_id)
         self.fname = basename
