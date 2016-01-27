@@ -1,6 +1,12 @@
 Yumsync CHANGELOG
 =================
 
+v0.1.4 (2016-01-27)
+-------------------
+
+* Single source for version number
+* Remove unneeded function
+
 v0.1.3 (2016-01-26)
 -------------------
 

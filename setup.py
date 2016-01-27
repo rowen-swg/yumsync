@@ -1,37 +1,31 @@
+import codecs
+import os
+import re
 import sys
 from setuptools import setup
 
-def required_module(module):
-  """ Test for the presence of a given module.
+here = os.path.abspath(os.path.dirname(__file__))
 
-  This function attempts to load a module, and if it fails to load, a message
-  is displayed and installation is aborted. This is required because YUM and
-  createrepo are not compatible with setuptools, and yumsync cannot function
-  without either one of them.
-  """
-  try:
-    __import__(module)
-    return True
-  except:
-    print '\n'.join([
-        'The "%s" module is required, but was not found.' % module,
-        'Please install the module and try again.'
-    ])
-    sys.exit(1)
+def read(*parts):
+    return codecs.open(os.path.join(here, *parts), 'r').read()
 
-required_module('yum')
-required_module('createrepo')
-#required_module('python-blessings')
-#required_module('PyYAML')
-#required_module('pyliblzma')
+def find_version(*file_paths):
+    version_file = read(*file_paths)
+    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
+                              version_file, re.M)
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
 
-setup(name='yumsync',
-    version='0.1.3',
+setup(
+    name='yumsync',
+    version=find_version('yumsync', '__init__.py'),
     description='A tool for mirroring and versioning YUM repositories',
     author='Ryan Uber, Vamegh Hedayati, Jordan Wesolowski',
     author_email='ru@ryanuber.com, repo@ev9.io, jrwesolo@gmail.com',
     url='https://github.com/jrwesolo/yumsync',
     packages=['yumsync'],
     scripts=['bin/yumsync'],
-    package_data={'yumsync': ['LICENSE', 'README.md']}
+    package_data={'yumsync': ['LICENSE', 'README.md']},
+    install_requires=['blessings', 'PyYAML', 'pyliblzma']
 )

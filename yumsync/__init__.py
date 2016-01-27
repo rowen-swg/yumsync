@@ -6,26 +6,7 @@ import urlparse
 from yumsync import util, repo, progress
 from yumsync.log import log
 
-__version__ = '0.1.3'
-
-def localsync(repos={}, basedir=None, repoversion=None, link_type=None, callback=None):
-  """ Create Repo Metadata from Local package repo
-      Also Versions the local repository """
-  if not basedir:
-    basedir = os.getcwd()  # default current working directory
-  util.validate_basedir(basedir)
-
-  for key in repos:
-    name = repos[key]["name"]
-    dest = util.get_repo_dir(basedir, name)
-    delete = repos[key]["delete"]
-    osver = repos[key]["osver"]
-    arch = repos[key]["arch"]
-    stable = repos[key]["stable_release"]
-    repo_type = repos[key]["repo_type"]
-    url = repos[key]["url"]
-    link_type = repos[key]["link_type"]
-    repo.localsync(name, dest, osver, arch, repoversion, stable, link_type, delete)
+__version__ = '0.1.4'
 
 def sync(base_dir=None, obj_repos=[], checksums=[], stable_vers=[],
          link_types=[], repo_vers=[], deletes=[], combines=[],
