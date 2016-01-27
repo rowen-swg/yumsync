@@ -1,6 +1,11 @@
 Yumsync CHANGELOG
 =================
 
+v0.1.3 (2016-01-26)
+-------------------
+
+* Fix callback function parameters causing `TypeError: start() got an unexpected keyword argument 'filename'`
+
 v0.1.2 (2016-01-21)
 -------------------
 
