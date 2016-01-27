@@ -18,10 +18,15 @@ What this supports
 * Friendly visual output provided by [blessings](https://pypi.python.org/pypi/blessings) when running under a TTY
 * Logs of sync activity are stored alongside the the repository metadata - this provides easy reporting and troubleshooting
 
-Usage Types
------------
+Recommended Usage (Docker)
+--------------------------
 
-Yumsync can be used in two ways. The easiest would be the CLI tool `yumsync`. The second would be by building your own tool and using the Yumsync libraries. If the second method is more your style, please use the [Yumsync CLI](bin/yumsync) as a guide.
+There is a companion Docker image that makes using Yumsync very simple. It can be found under the namespace [jrwesolo/yumsync](https://hub.docker.com/r/jrwesolo/yumsync/) on the [Docker Registry](https://hub.docker.com). It's corresponding GitHub repository can be found [here](https://github.com/jrwesolo/docker_yumsync). The [README.md](https://github.com/jrwesolo/docker_yumsync/blob/master/README.md) has detailed instructions on its usage. There is also a step-by-step walkthrough under the ["Full Example with Nginx"](https://github.com/jrwesolo/docker_yumsync/blob/master/README.md#full-example-with-nginx) section.
+
+Other Usage Types
+-----------------
+
+Yumsync can also be used in two other ways. The easiest would be the CLI tool `yumsync`. The second would be by building your own tool and using the Yumsync libraries. If the second method is more your style, please use the [Yumsync CLI](bin/yumsync) as a guide.
 
 CLI Usage
 ---------
