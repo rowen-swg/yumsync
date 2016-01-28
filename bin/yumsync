@@ -4,6 +4,7 @@ from urlparse import urlparse
 from urllib2 import urlopen
 import argparse
 import os
+import re
 import yumsync
 import shutil
 import sys
@@ -181,14 +182,19 @@ def check_cmdline_repos(**rawrepo):
     update_repos = {}
     if CMDLINEREPOS:
         for name in (CMDLINEREPOS):
-            if name in rawrepo:
-                update_repos[name] = rawrepo[name]
+            try:
+                regex = re.compile(r"{}".format(name), re.IGNORECASE)
+                for r in [r for r in rawrepo if re.search(regex, r)]:
+                    update_repos[r] = rawrepo[r]
+            except re.error:
+                continue
     else:
         update_repos = rawrepo
-    log('Repos to sync: %d' % len(update_repos))
+    log('Repos to sync: %d' % len(update_repos), force=SHOWONLY)
     for index, repo in enumerate(sorted(update_repos)):
-        log('%d) %s' % (index+1, repo))
+        log('%d) %s' % (index+1, repo), force=SHOWONLY)
     if SHOWONLY == True:
+        log('Exiting without performing changes...', force=SHOWONLY)
         sys.exit(0)
     return update_repos
 
@@ -281,7 +287,7 @@ def print_summary(repos, errors, elapsed):
     log('%d %s, %d %s, %s' % (repos, repo_str, errors, error_str, elapsed), header=True)
 
 def main():
-    log('parsing configuration', header=True)
+    log('parsing configuration', header=True, force=SHOWONLY)
     repo_config = load_config()
     repo_config = check_cmdline_repos(**repo_config)
 
