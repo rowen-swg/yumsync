@@ -4,7 +4,7 @@ import time
 
 start = int(time.time())
 
-def log(msg, header=False, log_dir=None):
+def log(msg, header=False, log_dir=None, force=False):
     time_str = time.strftime('%Y-%m-%dT%X%z')
     delta = int(time.time()) - start
     m, s = divmod(delta, 60)
@@ -18,7 +18,7 @@ def log(msg, header=False, log_dir=None):
             with open(os.path.join(log_dir, 'sync.log'), 'a') as logfile:
                 logfile.write('{} {}\n'.format(time_str, output_str))
 
-    if not sys.__stdout__.isatty():
+    if force or not sys.__stdout__.isatty():
         sys.__stdout__.write('{} {}\n'.format(delta_str, output_str))
         sys.__stdout__.flush()
 

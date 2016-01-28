@@ -45,7 +45,7 @@ optional arguments:
                         defaults to current directory
   -c CONFIG, --config CONFIG
                         Path to YAML config file describing repositories
-  -n NAME, --name NAME  Name of YUM repository (repeatable) from config file
+  -n NAME, --name NAME  Name (regex supported) of YUM repository (repeatable) from config file
                         to sync instead of all available
   -s, --show            Only show what repositories would be synced
 ```
