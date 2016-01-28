@@ -6,7 +6,7 @@ import urlparse
 from yumsync import util, repo, progress
 from yumsync.log import log
 
-__version__ = '0.1.4'
+__version__ = '0.2.1'
 
 def sync(base_dir=None, obj_repos=[], checksums=[], stable_vers=[],
          link_types=[], repo_vers=[], deletes=[], combines=[],
