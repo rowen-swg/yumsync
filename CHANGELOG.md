@@ -1,6 +1,14 @@
 Yumsync CHANGELOG
 =================
 
+v0.3.0 (2016-01-29)
+-------------------
+
+### Feature
+
+* UI now sorts both by name of repo, but also it's status
+* UI uses color to better indicate status of each individual repo
+
 v0.2.1 (2016-01-28)
 -------------------
 

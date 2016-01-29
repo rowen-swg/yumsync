@@ -1,5 +1,6 @@
 import sys
 import datetime
+import itertools
 from blessings import Terminal
 
 class Progress(object):
@@ -12,7 +13,13 @@ class Progress(object):
     display aggregated status of multiple repositories during a sync.
     """
     repos = {}
-    totals = {'numpkgs':0, 'dlpkgs':0, 'errors':0}
+    totals = {
+        'numpkgs': 0,
+        'dlpkgs': 0,
+        'md_complete': 0,
+        'md_total': 0,
+        'errors':0
+    }
     errors = []
 
     def __init__(self):
@@ -42,6 +49,7 @@ class Progress(object):
         """
         if not repo_id in self.repos:
             self.repos[repo_id] = {'numpkgs':0, 'dlpkgs':0, 'repomd':''}
+            self.totals['md_total'] += 1
         if set_total:
             self.repos[repo_id]['numpkgs'] = set_total
             self.totals['numpkgs'] += set_total
@@ -50,23 +58,29 @@ class Progress(object):
             self.totals['dlpkgs'] += pkgs_downloaded
         if repo_metadata:
             self.repos[repo_id]['repomd'] = repo_metadata
+            if repo_metadata == 'complete':
+                self.totals['md_complete'] += 1
         if repo_error:
             self.totals['errors'] += 1
+            if self.repos[repo_id]['repomd'] != 'complete':
+                self.totals['md_total'] -= 1
             self.errors.append((repo_id, repo_error))
 
         if sys.stdout.isatty():
             self.formatted()
 
-    @staticmethod
-    def pct(current, total):
+    def color(self, string, color=None):
+        if color and hasattr(self.term, color):
+            return '{}{}{}'.format(getattr(self.term, color),
+                                   string,
+                                   self.term.normal)
+        return string
+
+    def pct(self, current, total):
         """ Calculate a percentage. """
         val = current / float(total) * 100
-        if int(val) == 100:
-            val = 'complete'
-        else:
-            val = '{:0.1f}%'.format(val)
-
-        return val
+        formatted = '{:0.1f}%'.format(val)
+        return formatted if int(val) < 100 else 'complete'
 
     def elapsed(self):
         """ Calculate and return elapsed time.
@@ -81,7 +95,7 @@ class Progress(object):
 
         repo = '{:<{}s}'.format('Repository', max_repo)
         done = '{:>5s}'.format('Done')
-        total = '{:<5s}'.format('Total')
+        total = '{:>5s}'.format('Total')
         complete = 'Packages'
         metadata = 'Metadata'
         header_str = '{}  {}/{}  {}  {}'.format(repo, done, total, complete, metadata)
@@ -116,6 +130,8 @@ class Progress(object):
         """
         if numpkgs == 0:
             return '{:^{}s}'.format('-', a + b + 1)
+        elif dlpkgs >= numpkgs:
+            return '{:>{}}'.format(dlpkgs, a + b + 1)
         else:
             return '{0:>{2}}/{1:<{3}}'.format(dlpkgs, numpkgs, a, b)
 
@@ -132,20 +148,29 @@ class Progress(object):
         dlpkgs  = self.totals['dlpkgs']
         return self.represent_percent(dlpkgs, numpkgs, length)
 
+    def represent_total_metadata_percent(self, length):
+        """ Display the overall percentage of metadata completion. """
+        a = self.totals['md_total']
+        b = self.totals['md_complete']
+        return self.represent_percent(b, a, length)
+
     def represent_percent(self, dlpkgs, numpkgs, length):
         """ Display a percentage of completion.
 
         If the number of packages is unknown, nothing is displayed. Otherwise,
         a number followed by the percent sign is displayed.
         """
-        if numpkgs == 0:
+        if dlpkgs == 0:
             return '{:^{}s}'.format('-', length)
         else:
             return '{:^{}s}'.format(self.pct(dlpkgs, numpkgs), length)
 
-    def represent_repomd(self, repo_id):
+    def represent_repomd(self, repo_id, length):
         """ Display the current status of repository metadata. """
-        return self.repos[repo_id]['repomd']
+        if not self.repos[repo_id]['repomd']:
+            return '{:^{}s}'.format('-', length)
+        else:
+            return self.repos[repo_id]['repomd']
 
     def represent_repo(self, repo_id, h1, h2, h3, h4, h5):
         """ Represent an entire repository in one line.
@@ -157,23 +182,40 @@ class Progress(object):
         repo = '{:<{}s}'.format(repo_id, h1)
 
         if 'error' in self.repos[repo_id]:
-            packages = '{:^{}s}'.format('error', h2 + h3 + 1)
-            percent  = ' ' * h4
-            metadata = ' ' * h5
+            repo     = self.color(repo, 'red')
+            packages = self.color('{:^{}s}'.format('error', h2 + h3 + 1), 'red')
+            percent  = self.color('{:^{}s}'.format('-', h4), 'red')
+            metadata = self.color('{:^{}s}'.format('-', h5), 'red')
         else:
+            repo     = self.color(repo, 'blue')
             packages = self.represent_repo_pkgs(repo_id, h2, h3)
             percent  = self.represent_repo_percent(repo_id, h4)
-            metadata = self.represent_repomd(repo_id)
+            metadata = self.represent_repomd(repo_id, h5)
+            if percent == 'complete':
+                percent = self.color(percent, 'green')
+            if metadata == 'building':
+                metadata = self.color(metadata, 'yellow')
+            elif metadata == 'complete':
+                metadata = self.color(metadata, 'green')
         return self.format_line(repo, packages, percent, metadata)
 
-    def emit(self, line='', color=None):
+    def represent_total(self, h1, h2, h3, h4, h5):
+        total    = self.color('{:>{}s}'.format('Total', h1), 'yellow')
+        packages = self.represent_total_pkgs(h2, h3)
+        percent  = self.represent_total_percent(h4)
+        metadata = self.represent_total_metadata_percent(h5)
+        if percent == 'complete':
+            percent = self.color(percent, 'green')
+        if metadata == 'complete':
+            metadata = self.color(metadata, 'green')
+
+        return self.format_line(total, packages, percent, metadata)
+
+    def emit(self, line=''):
         numlines = len(line.split('\n'))
         self.linecount += numlines
         with self.term.location(x=0, y=self.linecount - numlines):
-            colored_line=''
-            if color and hasattr(self.term, color):
-                colored_line=getattr(self.term, color)
-            sys.stdout.write('{}{}{}'.format(colored_line, line, self.term.normal))
+            sys.stdout.write(line)
             sys.stdout.write(self.term.clear_eol())
 
     def formatted(self):
@@ -202,22 +244,36 @@ class Progress(object):
         self.linecount = 0  # reset line counter
         header, h1, h2, h3, h4, h5 = self.format_header(self.repos.keys())
         self.emit('-' * len(header))
-        self.emit('%s' % header, "green")
+        self.emit(self.color('{}'.format(header), 'green'))
         self.emit('-' * len(header))
 
-        for repo_id in sorted(self.repos):
-            self.emit(self.represent_repo(repo_id, h1, h2, h3, h4, h5), "blue")
+        error_repos = []
+        complete_repos = []
+        metadata_repos = []
+        other_repos = []
 
-        self.emit(('-' * len(header)))
-        self.emit(self.format_line('{:<{}s}'.format('Total', h1), self.represent_total_pkgs(h2, h3),
-                                   self.represent_total_percent(h4), ''), "yellow")
-        self.emit(('-' * len(header)))
+        for repo_id in sorted(self.repos):
+            if 'error' in self.repos[repo_id]:
+                error_repos.append(repo_id)
+            elif self.repos[repo_id]['repomd'] == 'complete':
+                complete_repos.append(repo_id)
+            elif self.repos[repo_id]['repomd']:
+                metadata_repos.append(repo_id)
+            else:
+                other_repos.append(repo_id)
+
+        for repo_id in itertools.chain(error_repos, complete_repos, metadata_repos, other_repos):
+            self.emit(self.represent_repo(repo_id, h1, h2, h3, h4, h5))
+
+        self.emit('-' * len(header))
+        self.emit(self.represent_total(h1, h2, h3, h4, h5))
+        self.emit('-' * len(header))
 
         # Append errors to output if any found.
         if self.totals['errors'] > 0:
-            self.emit('Errors ({}):'.format(self.totals['errors']), "red")
+            self.emit(self.color('Errors ({}):'.format(self.totals['errors']), 'red'))
             for repo_id, error in self.errors:
-                self.emit('{}: {}'.format(repo_id, error), "red")
+                self.emit(self.color('{}: {}'.format(repo_id, error), 'red'))
 
         with self.term.location(x=0, y=self.linecount):
             sys.stdout.write(self.term.clear_eos())
