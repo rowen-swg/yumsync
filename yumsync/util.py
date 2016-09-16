@@ -87,6 +87,9 @@ def validate_repo_vers(repo_vers):
 def validate_deletes(deletes):
     validate_type(deletes, 'deletes', list)
 
+def validate_gpgkeys(gpgkeys):
+    validate_type(gpgkeys, 'gpgkeys', list)
+
 def validate_combines(combines):
     validate_type(combines, 'combines', list)
 

@@ -6,11 +6,11 @@ import urlparse
 from yumsync import util, repo, progress
 from yumsync.log import log
 
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 
-def sync(base_dir=None, obj_repos=[], checksums=[], stable_vers=[],
-         link_types=[], repo_vers=[], deletes=[], combines=[],
-         local_dirs=[], callback=None):
+def sync(base_dir=None, callback=None, checksums=[], combines=[],
+         deletes=[], gpgkeys=[], link_types=[], local_dirs=[],
+         obj_repos=[], repo_vers=[], stable_vers=[]):
     """ Mirror repositories with configuration data from multiple sources.
 
     Handles all input validation and higher-level logic before passing control
@@ -22,14 +22,15 @@ def sync(base_dir=None, obj_repos=[], checksums=[], stable_vers=[],
         base_dir = os.getcwd()  # default current working directory
 
     util.validate_base_dir(base_dir)
-    util.validate_repos(obj_repos)
     util.validate_checksums(checksums)
-    util.validate_stable_vers(stable_vers)
-    util.validate_link_types(link_types)
-    util.validate_repo_vers(repo_vers)
-    util.validate_deletes(deletes)
     util.validate_combines(combines)
+    util.validate_deletes(deletes)
+    util.validate_gpgkeys(gpgkeys)
+    util.validate_link_types(link_types)
     util.validate_local_dirs(local_dirs)
+    util.validate_repo_vers(repo_vers)
+    util.validate_repos(obj_repos)
+    util.validate_stable_vers(stable_vers)
 
     prog = progress.Progress()  # callbacks talk to this object
     manager = multiprocessing.Manager()
@@ -59,6 +60,7 @@ def sync(base_dir=None, obj_repos=[], checksums=[], stable_vers=[],
         checksum = checksums.pop(0)
         stable = stable_vers.pop(0)
         delete = deletes.pop(0)
+        gpgkey = gpgkeys.pop(0)
         link_type = link_types.pop(0)
         version = repo_vers.pop(0)
         combine = combines.pop(0)
@@ -72,11 +74,11 @@ def sync(base_dir=None, obj_repos=[], checksums=[], stable_vers=[],
         if local_dir:
             target = repo.localsync
             args = (obj_repo, dest, local_dir, checksum, version, stable,
-                    link_type, delete, combine, repocallback)
+                    link_type, delete, combine, repocallback, gpgkey)
         else:
             target=repo.sync
             args = (obj_repo, dest, checksum, version, stable, link_type,
-                    delete, combine, yumcallback, repocallback)
+                    delete, combine, yumcallback, repocallback, gpgkey)
         p = multiprocessing.Process(target=target, args=args)
         p.start()
         processes.append(p)

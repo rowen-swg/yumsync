@@ -1,6 +1,19 @@
 Yumsync CHANGELOG
 =================
 
+v0.4.0 (2016-09-15)
+-------------------
+
+### Feature
+
+* Added --version flag to display version
+* GPG key download happens in each repo's sync thread
+* GPG key info is now logged
+
+### Bugfix
+
+* Create links as soon as possible so we don't have to wait for long repos
+
 v0.3.0 (2016-01-29)
 -------------------
 
