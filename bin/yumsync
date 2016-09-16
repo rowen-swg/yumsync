@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from urlparse import urlparse
-from urllib2 import urlopen
 import argparse
 import os
 import re
@@ -43,6 +41,15 @@ class mycallback(object):
             pkg_str = 'package' if self.linkpkg == 1 else 'packages'
             self.log('%s: linking %d %s to local repo' % (repo_id, self.linkpkg, pkg_str), repo_id=repo_id)
             self.linkpkg = 0 # reset after printing
+
+    def gpgkey_exists(self, repo_id, keyname):
+        self.log('%s: GPG key already exists (%s)' % (repo_id, keyname), repo_id=repo_id)
+
+    def gpgkey_download(self, repo_id, keyname):
+        self.log('%s: GPG key downloaded (%s)' % (repo_id, keyname), repo_id=repo_id)
+
+    def gpgkey_error(self, repo_id, error):
+        self.log('%s: error downloading GPG key (%s)' % (repo_id, error), repo_id=repo_id)
 
     def repo_init(self, repo_id, num_pkgs):
         self.totalpkg = num_pkgs
@@ -218,27 +225,12 @@ def setup_public(repos):
         if not os.path.exists(symbolic_path):
             os.symlink(relative_path, symbolic_path)
 
-def download_gpg(repos):
-    for repo, opts in repos.iteritems():
-        real_path = os.path.join(OUTDIR, util.friendly(repo))
-        if opts.has_key('gpgkey') and opts['gpgkey']:
-            try:
-                key_name = os.path.basename(urlparse(opts['gpgkey']).path)
-                key_path = os.path.join(real_path, key_name)
-                if not os.path.exists(key_path):
-                    key_data = urlopen(opts['gpgkey'])
-                    with open(key_path, 'w') as f:
-                        f.write(key_data.read())
-                    key_data.close()
-            except:
-                log('Unable to download %s for %s' % (opts['gpgkey'], repo))
-                pass
-
 def handle_repos(scanned_repos={}):
     # initialize arrays for sync
     checksums = []
     combines = []
     deletes = []
+    gpgkeys = []
     link_types = []
     repo_vers = []
     repos = []
@@ -251,6 +243,7 @@ def handle_repos(scanned_repos={}):
         checksum = scanned_repos[key]['checksum']
         combine = scanned_repos[key]['combined_metadata']
         delete = scanned_repos[key]['delete']
+        gpgkey = scanned_repos[key]['gpgkey']
         link_type = scanned_repos[key]['link_type']
         mirrorlist = scanned_repos[key]['mirrorlist']
         stable = scanned_repos[key]['stable']
@@ -260,6 +253,7 @@ def handle_repos(scanned_repos={}):
         checksums.append(checksum)
         combines.append(combine)
         deletes.append(delete)
+        gpgkeys.append(gpgkey)
         link_types.append(link_type)
         stable_vers.append(stable)
         local_dirs.append(local_dir)
@@ -277,9 +271,9 @@ def handle_repos(scanned_repos={}):
 
     mycallback_instance = mycallback(log_dirs)
 
-    return yumsync.sync(base_dir=OUTDIR, obj_repos=repos, checksums=checksums, combines=combines,
-                        stable_vers=stable_vers, link_types=link_types, deletes=deletes,
-                        callback=mycallback_instance, repo_vers=repo_vers, local_dirs=local_dirs)
+    return yumsync.sync(base_dir=OUTDIR, callback=mycallback_instance, checksums=checksums, combines=combines,
+                        deletes=deletes, gpgkeys=gpgkeys, link_types=link_types, local_dirs=local_dirs,
+                        obj_repos=repos, repo_vers=repo_vers, stable_vers=stable_vers)
 
 def print_summary(repos, errors, elapsed):
     repo_str = 'repository' if repos == 1 else 'repositories'
@@ -287,6 +281,10 @@ def print_summary(repos, errors, elapsed):
     log('%d %s, %d %s, %s' % (repos, repo_str, errors, error_str, elapsed), header=True)
 
 def main():
+    if SHOWVERSION == True:
+        print(yumsync.__version__)
+        sys.exit(0)
+
     log('parsing configuration', header=True, force=SHOWONLY)
     repo_config = load_config()
     repo_config = check_cmdline_repos(**repo_config)
@@ -295,9 +293,8 @@ def main():
 
     log('syncing repositories', header=True)
 
-    repos, errors, elapsed = handle_repos(scanned_repos)
-    download_gpg(scanned_repos)
     setup_public(scanned_repos)
+    repos, errors, elapsed = handle_repos(scanned_repos)
 
     print_summary(repos, errors, elapsed)
     sys.exit(0)
@@ -306,17 +303,19 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sync YUM repositories with optional versioned snapshots.')
     parser.add_argument('-o', '--directory', action='store', default=os.getcwd(),
         help='Path to output directory to store repositories, defaults to current directory')
-    parser.add_argument('-c', '--config', action='store', required=True,
-        help='Path to YAML config file describing repositories')
+    parser.add_argument('-c', '--config', action='store', default=os.path.join(os.getcwd(), 'repos.yml'),
+        help='Path to YAML config file describing repositories, defaults to repos.yml in current directory')
     parser.add_argument('-n', '--name', action='append', required=False,
         help='Name of YUM repository (repeatable) from config file to sync instead of all available')
-    parser.add_argument('-s', '--show', action='store_true', required=False, default=False,
+    parser.add_argument('-s', '--show', action='store_true', default=False,
         help='Only show what repositories would be synced')
+    parser.add_argument('-v', '--version', action='store_true', default=False,
+        help='Show version')
     args = parser.parse_args()
     REPOFILE     = args.config
     OUTDIR       = args.directory
     CMDLINEREPOS = args.name
     SHOWONLY     = args.show
+    SHOWVERSION  = args.version
     PUBLICDIR    = os.path.join(OUTDIR, 'public')
-    SYNCVERSION  = time.strftime('%Y/%m/%d')
     main()

@@ -6,6 +6,8 @@ import yum
 import createrepo
 import copy
 from contextlib import contextmanager
+from urllib2 import urlopen
+from urlparse import urlparse
 from yumsync import util
 
 def factory(name, islocal=False, baseurls=None, mirrorlist=None):
@@ -36,8 +38,10 @@ def set_path(repo, path):
 
     # The following is wrapped in a try-except to suppress an anticipated
     # exception from YUM's yumRepo.py, line 530 and 557.
-    try: result.pkgdir = path
-    except yum.Errors.RepoError: pass
+    try:
+        result.pkgdir = path
+    except yum.Errors.RepoError:
+        pass
 
     return result
 
@@ -91,8 +95,26 @@ def retrieve_group_comps(repo):
         except yum.Errors.GroupsError:
             return None
 
+def download_gpgkey(repo, dest, gpgkey, repocallback):
+    if gpgkey:
+        try:
+            keyname = os.path.basename(urlparse(gpgkey).path)
+            key_path = os.path.join(dest, keyname)
+            if not os.path.exists(key_path):
+                key_data = urlopen(gpgkey)
+                with open(key_path, 'w') as f:
+                    f.write(key_data.read())
+                key_data.close()
+                callback(repocallback, repo, 'gpgkey_download', os.path.basename(key_path))
+            else:
+                callback(repocallback, repo, 'gpgkey_exists', os.path.basename(key_path))
+            return key_path
+        except Exception as e:
+            callback(repocallback, repo, 'gpgkey_error', str(e))
+    return None
+
 def localsync(repo, dest, local_dir, checksum, version, stable, link_type, delete, combine=False,
-              repocallback=None):
+              repocallback=None, gpgkey=None):
 
     package_dir = os.path.join(dest, 'packages')
 
@@ -102,6 +124,8 @@ def localsync(repo, dest, local_dir, checksum, version, stable, link_type, delet
         util.make_dir(package_dir)
 
     version_dir = None
+
+    download_gpgkey(repo, dest, gpgkey, repocallback)
 
     if version:
         version_dir = os.path.join(dest, version, 'packages')
@@ -179,7 +203,7 @@ def localsync(repo, dest, local_dir, checksum, version, stable, link_type, delet
             os.unlink(os.path.join(dest, 'stable'))
 
 def sync(repo, dest, checksum, version, stable, link_type, delete, combine=False, yumcallback=None,
-         repocallback=None):
+         repocallback=None, gpgkey=None):
     """ Sync repository contents from a remote source.
 
     Accepts a repository, destination path, and an optional version, and uses
@@ -206,6 +230,8 @@ def sync(repo, dest, checksum, version, stable, link_type, delete, combine=False
     package_dir = os.path.join(dest, 'packages')
     util.make_dir(package_dir)
     version_dir = None
+
+    download_gpgkey(repo, dest, gpgkey, repocallback)
 
     if version:
         version_dir = os.path.join(dest, version, 'packages')

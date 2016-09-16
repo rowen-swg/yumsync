@@ -381,6 +381,18 @@ class ProgressCallback(object):
         """ Share the total packages in a repository, when known. """
         self.send(repo_id, 'repo_init', numpkgs)
 
+    def gpgkey_exists(self, repo_id, keyname):
+        """ Called when a gpg key already exists """
+        self.send(repo_id, 'gpgkey_exists', keyname)
+
+    def gpgkey_download(self, repo_id, keyname):
+        """ Called when a gpg key is downloaded """
+        self.send(repo_id, 'gpgkey_download', keyname)
+
+    def gpgkey_error(self, repo_id, error):
+        """ Called when a gpg key has an error """
+        self.send(repo_id, 'gpgkey_error', error)
+
     def repo_complete(self, repo_id):
         """ Called when a repository completes downloading all packages. """
         self.send(repo_id, 'repo_complete')
