@@ -23,101 +23,6 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
-import yum
-from yumsync.yumbase import YumBase
-
-def friendly(name):
-    return sanitize(name).replace('/', '_')
-
-def sanitize(name):
-    return name.strip().strip('/')
-
-def get_yum():
-    """ Retrieve a YumBase object, pre-configured. """
-    return YumBase()
-
-def get_repo_dir(base_dir, name):
-    """ Return the path to a repository directory.
-
-    This is the directory in which all of the repository data will live. The
-    path can be relative or fully qualified.
-    """
-    return os.path.join(base_dir, name)
-
-def get_package_filename(pkg):
-    """ From a repository object, return the name of the RPM file. """
-    return '%s-%s-%s.%s.rpm' % (pkg.name, pkg.version, pkg.release, pkg.arch)
-
-def validate_type(obj, obj_name, obj_type):
-    if type(obj) is not obj_type:
-        raise Exception('%s must be %s, not %s' % (obj_name, obj_type, type(obj)))
-
-def validate_base_dir(base_dir):
-    """ Validate the input of a base_dir.
-
-    Since a base_dir can be either absolute or relative, the only thing we can
-    really validate here is that the value is a regular string.
-    """
-    validate_type(base_dir, 'base_dir', str)
-
-def validate_url(url):
-    """ Validate a source URL. http(s) or file-based accepted. """
-    if not (url.startswith('http://') or url.startswith('https://') or
-            url.startswith('file://')):
-        raise Exception('Unsupported URL format "%s"' % url)
-
-def validate_baseurl(baseurl):
-    """ Validate user input of a repository baseurl. """
-    validate_type(baseurl, 'baseurl', str)
-    validate_url(baseurl)
-
-def validate_checksums(checksums):
-    """ Validate user input of a repository checksum. """
-    validate_type(checksums, 'checksums', list)
-
-def validate_stable_vers(stable_vers):
-    validate_type(stable_vers, 'stable_ver', list)
-
-def validate_link_types(link_types):
-    validate_type(link_types, 'link_types', list)
-
-def validate_repo_vers(repo_vers):
-    validate_type(repo_vers, 'repo_vers', list)
-
-def validate_deletes(deletes):
-    validate_type(deletes, 'deletes', list)
-
-def validate_gpgkeys(gpgkeys):
-    validate_type(gpgkeys, 'gpgkeys', list)
-
-def validate_combines(combines):
-    validate_type(combines, 'combines', list)
-
-def validate_local_dirs(local_dirs):
-    validate_type(local_dirs, 'local_dirs', list)
-
-def validate_baseurls(baseurls):
-    """ Validate multiple baseurls from a list. """
-    validate_type(baseurls, 'baseurl', list)
-    for baseurl in baseurls:
-        validate_baseurl(baseurl)
-
-def validate_mirrorlist(mirrorlist):
-    """ Validate a repository mirrorlist source. """
-    validate_type(mirrorlist, 'mirrorlist', str)
-    if mirrorlist.startswith('file://'):
-        raise Exception('mirrorlist cannot use a file:// source.')
-    validate_url(mirrorlist)
-
-def validate_repo(repo):
-    """ Validate a repository object. """
-    validate_type(repo, 'repo', yum.yumRepo.YumRepository)
-
-def validate_repos(repos):
-    """ Validate repository objects. """
-    validate_type(repos, 'repos', list)
-    for repo in repos:
-        validate_repo(repo)
 
 def make_dir(path):
     """ Create a directory recursively, if it does not exist. """
@@ -146,7 +51,6 @@ def symlink(path, target):
         os.symlink(target, path)
         return True
 
-
 def hardlink(source, target):
     " This method creates a hardlink ... "
     if source != target:
@@ -159,6 +63,9 @@ def hardlink(source, target):
         target_dir = os.path.dirname(target)
         if not os.path.exists(target_dir):
             make_dir(target_dir)
+        # if target is a symlink, unlink
+        if os.path.islink(target):
+            os.unlink(target)
         # get dev and inode info for target
         if os.path.exists(target):
             target_dev = os.stat(target).st_dev

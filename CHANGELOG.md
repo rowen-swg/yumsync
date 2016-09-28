@@ -1,6 +1,24 @@
 Yumsync CHANGELOG
 =================
 
+v1.0.0 (2016-09-28)
+-------------------
+
+This release is a major refactor of yumsync. It's goal was to simplify the code and reduce unnecessary repetition.
+
+### Feature
+
+* Support setting stable links without resyncing (!)
+* Log messages when stable and latest links are set
+* More informative logging for local repos
+* More intelligent logging for skipped packages
+* Only generate metadata once and copy for versioned and combined
+
+### Bugfix
+
+* Handle switching between hardlink and symlink gracefully
+* Covered more edge cases when creating directories and symlinks
+
 v0.4.0 (2016-09-15)
 -------------------
 

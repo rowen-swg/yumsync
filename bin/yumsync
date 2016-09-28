@@ -10,6 +10,7 @@ import time
 import yaml
 from yumsync import util
 from yumsync.log import log
+from yumsync import yumrepo
 
 class mycallback(object):
     def __init__(self, log_dirs=None):
@@ -21,148 +22,82 @@ class mycallback(object):
             log_dir = self.log_dirs[repo_id]
         else:
             log_dir = None
+        if repo_id:
+            msg = '{}: {}'.format(repo_id, msg)
         log(msg, header=header, log_dir=log_dir)
 
-    def sizeof_fmt(self, num, suffix='B'):
+    @staticmethod
+    def sizeof_fmt(num, suffix='B'):
         for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
             if abs(num) < 1024.0:
-                return "%3.1f%s%s" % (num, unit, suffix)
+                return '{:3.1f}{}{}'.format(num, unit, suffix)
             num /= 1024.0
-        return "%.1f%s%s" % (num, 'Yi', suffix)
+        return '{:3.1f}{}{}'.format(num, 'Yi', suffix)
 
     def print_skipped(self, repo_id):
         if self.skippkg > 0:
             pkg_str = 'package' if self.skippkg == 1 else 'packages'
-            self.log('%s: skipping %d %s, already downloaded' % (repo_id, self.skippkg, pkg_str), repo_id=repo_id)
+            reason = 'already available'
+            self.log('skipping {:d} {} ({})'.format(self.skippkg, pkg_str, reason), repo_id=repo_id)
             self.skippkg = 0 # reset after printing
 
-    def print_linked(self, repo_id):
-        if self.linkpkg > 0:
-            pkg_str = 'package' if self.linkpkg == 1 else 'packages'
-            self.log('%s: linking %d %s to local repo' % (repo_id, self.linkpkg, pkg_str), repo_id=repo_id)
-            self.linkpkg = 0 # reset after printing
-
     def gpgkey_exists(self, repo_id, keyname):
-        self.log('%s: GPG key already exists (%s)' % (repo_id, keyname), repo_id=repo_id)
+        self.log('GPG key already exists ({})'.format(keyname), repo_id=repo_id)
 
     def gpgkey_download(self, repo_id, keyname):
-        self.log('%s: GPG key downloaded (%s)' % (repo_id, keyname), repo_id=repo_id)
+        self.log('GPG key downloaded ({})'.format(keyname), repo_id=repo_id)
 
     def gpgkey_error(self, repo_id, error):
-        self.log('%s: error downloading GPG key (%s)' % (repo_id, error), repo_id=repo_id)
+        self.log('error downloading GPG key ({})'.format(error), repo_id=repo_id)
 
-    def repo_init(self, repo_id, num_pkgs):
+    def repo_link_set(self, repo_id, link_type, target):
+        self.log('{} set to {}'.format(link_type, target), repo_id=repo_id)
+
+    def repo_init(self, repo_id, num_pkgs, islocal):
         self.totalpkg = num_pkgs
         self.finishpkg = 0
         self.skippkg = 0
-        self.linkpkg = 0
-        self.log('%s: found %d packages' % (repo_id, num_pkgs), repo_id=repo_id)
+        self.islocal = islocal
+        if islocal:
+            self.log('found {:d} packages (local)'.format(num_pkgs), repo_id=repo_id)
+        else:
+            self.log('found {:d} packages'.format(num_pkgs), repo_id=repo_id)
 
-    def local_pkg_exists(self, repo_id, pkgname):
+    def pkg_exists(self, repo_id, pkgname):
         self.skippkg += 1
         self.finishpkg += 1
-        if self.totalpkg >= 1000 and self.skippkg >= (self.totalpkg / 10):
+        if self.totalpkg >= 1000 and self.skippkg >= int(round(self.totalpkg / 10, -2)):
             self.print_skipped(repo_id)
 
-    def link_pkg(self, repo_id, pkgname):
-        self.linkpkg += 1
+    def link_local_pkg(self, repo_id, pkgname, size):
         self.finishpkg += 1
-        if self.totalpkg >= 1000 and self.linkpkg >= (self.totalpkg / 10):
-            self.print_linked(repo_id)
+        self.log('({:d}/{:d}) {} ({})'.format(self.finishpkg, self.totalpkg, pkgname, self.sizeof_fmt(size)), repo_id=repo_id)
 
     def delete_pkg(self, repo_id, pkgname):
-        self.log('%s: deleting package %s' % (repo_id, pkgname), repo_id=repo_id)
+        self.log('deleting package {}'.format(pkgname), repo_id=repo_id)
 
     def repo_error(self, repo_id, error):
-        self.log('%s: error (%s)' % (repo_id, error), repo_id=repo_id)
+        self.log('error ({})'.format(error), repo_id=repo_id)
 
-    def repo_complete(self, repo_id, value):
+    def repo_complete(self, repo_id):
         self.print_skipped(repo_id)
         self.print_linked(repo_id)
-        self.log('%s: package download complete' % repo_id, repo_id=repo_id)
+        self.log('package download complete', repo_id=repo_id)
 
     def download_start(self, repo_id, filename, url, basename, size, text):
         self.print_skipped(repo_id)
         self.print_linked(repo_id)
-        self.fname = basename
 
-    def download_end(self, repo_id, size):
-        if self.fname.endswith('.rpm'):
+    def download_end(self, repo_id, package, size):
+        if package.endswith('.rpm'):
             self.finishpkg += 1
-            self.log('%s: (%d/%d) %s (%s)' % (repo_id, self.finishpkg, self.totalpkg, self.fname, self.sizeof_fmt(size)), repo_id=repo_id)
+            self.log('({:d}/{:d}) {} ({})'.format(self.finishpkg, self.totalpkg, package, self.sizeof_fmt(size)), repo_id=repo_id)
 
     def repo_metadata(self, repo_id, status):
-        self.log('%s: metadata is %s' % (repo_id, status), repo_id=repo_id)
+        self.log('metadata is {}'.format(status), repo_id=repo_id)
 
     def repo_group_data(self, repo_id, status):
-        self.log('%s: group data is %s' % (repo_id, status), repo_id=repo_id)
-
-def scan_yaml(**rawrepo):
-  repos = {}
-
-  for key in rawrepo:
-    if rawrepo[key] == None:
-        rawrepo[key] = {}
-    try:
-      repo_type = rawrepo[key]['local_dir']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = None
-    try:
-      link_type = rawrepo[key]['link_type']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = 'symlink'
-    try:
-      delete = rawrepo[key]['delete']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = False
-    try:
-      url = rawrepo[key]['baseurl']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = None
-    try:
-      url = rawrepo[key]['mirrorlist']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = None
-    try:
-      url = rawrepo[key]['gpgkey']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = None
-    try:
-      stable = rawrepo[key]['stable']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = None
-    try:
-      combine = rawrepo[key]['combined_metadata']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = False
-    try:
-      checksum = rawrepo[key]['checksum']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = None
-    try:
-      version_format = rawrepo[key]['version']
-    except KeyError as e:
-      new_key = e.args[0]
-      rawrepo[key][new_key] = '%Y/%m/%d'
-
-    if type(rawrepo[key]['stable']) is not str and rawrepo[key]['stable'] is not None:
-        rawrepo[key]['stable'] = str(rawrepo[key]['stable'])
-
-    if type(rawrepo[key]['baseurl']) is str:
-        rawrepo[key]['baseurl'] = [rawrepo[key]['baseurl']]
-
-    repos[key] = rawrepo[key]
-
-  return repos
+        self.log('group data is {}'.format(status), repo_id=repo_id)
 
 # load configuration
 def load_config():
@@ -181,104 +116,74 @@ def load_config():
         log('unable to parse configuration file')
         if hasattr(e, 'problem_mark'):
             mark = e.problem_mark
-            log('Error at Line %d, column %d' % (mark.line+1, mark.column+1))
+            log('Error at Line {:d}, column {:d}'.format(mark.line+1, mark.column+1))
         sys.exit(1)
 
-# check repos passed on command line
-def check_cmdline_repos(**rawrepo):
-    update_repos = {}
+# filter repos passed via command line
+def filter_repos(config):
+    filtered = {}
+
     if CMDLINEREPOS:
-        for name in (CMDLINEREPOS):
+        for name in CMDLINEREPOS:
             try:
                 regex = re.compile(r"{}".format(name), re.IGNORECASE)
-                for r in [r for r in rawrepo if re.search(regex, r)]:
-                    update_repos[r] = rawrepo[r]
+                for r in [r for r in config if re.search(regex, r)]:
+                    filtered[r] = config[r]
             except re.error:
                 continue
     else:
-        update_repos = rawrepo
-    log('Repos to sync: %d' % len(update_repos), force=SHOWONLY)
-    for index, repo in enumerate(sorted(update_repos)):
-        log('%d) %s' % (index+1, repo), force=SHOWONLY)
-    if SHOWONLY == True:
-        log('Exiting without performing changes...', force=SHOWONLY)
-        sys.exit(0)
-    return update_repos
+        filtered = config
+
+    return filtered
 
 # setup public folders for repositories
 def setup_public(repos):
     for repo in repos:
-        real_path = os.path.join(OUTDIR, util.friendly(repo))
-        symbolic_path = os.path.join(PUBLICDIR, util.sanitize(repo))
-        head, tail = os.path.split(symbolic_path)
+        head, tail = os.path.split(repo.public_dir)
+        util.make_dir(repo.dir)
         util.make_dir(head)
-        relative_path = os.path.relpath(real_path, head)
+        relative_path = os.path.relpath(repo.dir, head)
         # clean out symbolic_path if incorrect
-        if os.path.islink(symbolic_path):
-            if os.readlink(symbolic_path) != relative_path:
-                os.unlink(symbolic_path)
-        elif os.path.isdir(symbolic_path):
-            shutil.rmtree(symbolic_path)
-        elif os.path.isfile(symbolic_path):
-            os.unlink(symbolic_path)
+        if os.path.islink(repo.public_dir):
+            if os.readlink(repo.public_dir) != relative_path:
+                os.unlink(repo.public_dir)
+        elif os.path.isdir(repo.public_dir):
+            shutil.rmtree(repo.public_dir)
+        elif os.path.isfile(repo.public_dir):
+            os.unlink(repo.public_dir)
         # setup symbolic link if missing
-        if not os.path.exists(symbolic_path):
-            os.symlink(relative_path, symbolic_path)
+        if not os.path.lexists(repo.public_dir):
+            os.symlink(relative_path, repo.public_dir)
 
-def handle_repos(scanned_repos={}):
-    # initialize arrays for sync
-    checksums = []
-    combines = []
-    deletes = []
-    gpgkeys = []
-    link_types = []
-    repo_vers = []
-    repos = []
-    stable_vers = []
-    local_dirs = []
-    log_dirs = {}
-
-    for key in scanned_repos:
-        baseurl = scanned_repos[key]['baseurl']
-        checksum = scanned_repos[key]['checksum']
-        combine = scanned_repos[key]['combined_metadata']
-        delete = scanned_repos[key]['delete']
-        gpgkey = scanned_repos[key]['gpgkey']
-        link_type = scanned_repos[key]['link_type']
-        mirrorlist = scanned_repos[key]['mirrorlist']
-        stable = scanned_repos[key]['stable']
-        version = scanned_repos[key]['version']
-        local_dir = scanned_repos[key]['local_dir']
-
-        checksums.append(checksum)
-        combines.append(combine)
-        deletes.append(delete)
-        gpgkeys.append(gpgkey)
-        link_types.append(link_type)
-        stable_vers.append(stable)
-        local_dirs.append(local_dir)
-
-        islocal = local_dir is not None
-
-        repos.append(yumsync.repo.factory(name=key, islocal=islocal, baseurls=baseurl, mirrorlist=mirrorlist))
-
-        if version:
-            repo_vers.append(time.strftime(version))
-            log_dirs[key] = os.path.join(OUTDIR, util.friendly(key), repo_vers[-1])
+def stable_links(repos):
+    log('setting stable links', header=True)
+    for repo in repos:
+        if repo.version:
+            if repo.stable:
+                util.symlink(os.path.join(repo.dir, 'stable'), repo.stable)
+                log('{}: stable set to {}'.format(repo.id, repo.stable))
+            else:
+                if os.path.lexists(os.path.join(repo.dir, 'stable')):
+                    os.unlink(os.path.join(repo.dir, 'stable'))
         else:
-            repo_vers.append(None)
-            log_dirs[key] = os.path.join(OUTDIR, util.friendly(key))
+            if os.path.lexists(os.path.join(repo.dir, 'latest')):
+                os.unlink(os.path.join(repo.dir, 'latest'))
+            if os.path.lexists(os.path.join(repo.dir, 'stable')):
+                os.unlink(os.path.join(repo.dir, 'stable'))
+
+def handle_repos(repos):
+    log_dirs = {}
+    for repo in repos:
+        log_dirs[repo.id] = repo.log_dir
 
     mycallback_instance = mycallback(log_dirs)
 
-    return yumsync.sync(base_dir=OUTDIR, callback=mycallback_instance, checksums=checksums, combines=combines,
-                        deletes=deletes, gpgkeys=gpgkeys, link_types=link_types, local_dirs=local_dirs,
-                        obj_repos=repos, repo_vers=repo_vers, stable_vers=stable_vers)
+    return yumsync.sync(repos, mycallback_instance)
 
 def print_summary(repos, errors, elapsed):
     repo_str = 'repository' if repos == 1 else 'repositories'
     error_str = 'error' if errors == 1 else 'errors'
-    log('%d %s, %d %s, %s' % (repos, repo_str, errors, error_str, elapsed), header=True)
+    log('{:d} {}, {:d} {}, {}'.format(repos, repo_str, errors, error_str, elapsed), header=True)
 
 def main():
     if SHOWVERSION == True:
@@ -286,15 +191,35 @@ def main():
         sys.exit(0)
 
     log('parsing configuration', header=True, force=SHOWONLY)
-    repo_config = load_config()
-    repo_config = check_cmdline_repos(**repo_config)
+    repo_config = filter_repos(load_config())
 
-    scanned_repos = scan_yaml(**repo_config)
+    repos = []
+    for repoid in sorted(repo_config):
+        try:
+            repos.append(yumrepo.YumRepo(repoid, OUTDIR, repo_config[repoid]))
+        except Exception as e:
+            log('{}: {} (skipping)'.format(repoid, e))
+            continue
+
+    log('Repos to sync: {:d}'.format(len(repos)), force=SHOWONLY)
+    if len(repos) < 1: sys.exit(0)
+
+    padding = len(str(len(repos)))
+    for index, repo in enumerate(repos):
+        repo_str = '{} (local)'.format(repo.id) if repo.local_dir else repo.id
+        log('{:{}d}) {}'.format(index + 1, padding, repo_str), force=SHOWONLY)
+    if SHOWONLY:
+        log('Exiting without performing changes...', force=SHOWONLY)
+        sys.exit(0)
+
+    if STABLEONLY == True:
+        stable_links(repos)
+        sys.exit(0)
 
     log('syncing repositories', header=True)
+    setup_public(repos)
 
-    setup_public(scanned_repos)
-    repos, errors, elapsed = handle_repos(scanned_repos)
+    repos, errors, elapsed = handle_repos(repos)
 
     print_summary(repos, errors, elapsed)
     sys.exit(0)
@@ -311,11 +236,14 @@ if __name__ == '__main__':
         help='Only show what repositories would be synced')
     parser.add_argument('-v', '--version', action='store_true', default=False,
         help='Show version')
+    parser.add_argument('--stable', action='store_true', default=False,
+        help='Only set stable links for YUM repositories')
     args = parser.parse_args()
     REPOFILE     = args.config
     OUTDIR       = args.directory
     CMDLINEREPOS = args.name
     SHOWONLY     = args.show
     SHOWVERSION  = args.version
+    STABLEONLY   = args.stable
     PUBLICDIR    = os.path.join(OUTDIR, 'public')
     main()
