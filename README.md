@@ -48,6 +48,8 @@ optional arguments:
   -n NAME, --name NAME  Name (regex supported) of YUM repository (repeatable) from config file
                         to sync instead of all available
   -s, --show            Only show what repositories would be synced
+  -v, --version         Show version
+  --stable              Only set stable links for YUM repositories
 ```
 
 The repository configuration is read from a yaml config file. Below is a minimal example of what a config file should look like:
@@ -72,7 +74,7 @@ Option | Type | Default  | Description
 `baseurl` | `string`, `array` | `none` | One or more baseurls that will be used to retrieve the desired respository.
 `checksum` | `string` | `sha256` | What type of checksum to use when generating repo metadata. `sha256` is generally what you want. If the repository will be consumed by a CentOS 5 machine, use `sha1`.
 `combined_metadata` | `boolean` | `false` | If using versioned snapshots, also create metadata in the root of the mirrored repository for all available packages.
-`delete` | `boolean` | `false` | Whether or not to delete packages that have been synced, but are no longer present in the repository being mirrored (local or remote). Ignored when using `link_type` of `symlink`.
+`delete` | `boolean` | `false` | Whether or not to delete packages that have been synced, but are no longer present in the repository being mirrored (local or remote). When using `link_type` of `symlink`, packages won't be deleted, but will be excluded from metadata.
 `gpgkey` | `string` | `none` | Url (if local, prefix with `file://`) to the GPG key to store along side the mirror.
 `link_type` | `string` | `symlink` | Type of link used when creating versioned snapshots or when linking to local packages. Valid values are `hardlink` or `symlink`.
 `local_dir` | `string` | `none` | Path to a local folder that contains rpms. These rpms will be used to create a local repository. Supports versioned or unversioned, symlinks or hardlinks.
