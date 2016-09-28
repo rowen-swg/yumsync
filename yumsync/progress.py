@@ -40,7 +40,7 @@ class Progress(object):
             sys.stdout.flush()
 
     def update(self, repo_id, set_total=None, pkgs_downloaded=None,
-               local_pkg_exists=None, repo_metadata=None, repo_error=None):
+               pkg_exists=None, repo_metadata=None, repo_error=None):
         """ Handles updating the object itself.
 
         This method will be called any time the number of packages in
@@ -331,9 +331,8 @@ class YumProgress(object):
         RPM we are getting the event for.
         """
         if self.package.endswith('.rpm'):
-            self.queue.put({'repo_id':self.repo_id, 'action':'download_end',
-                            'value':1})
-        self.callback('download_end', size)
+            self.queue.put({'repo_id':self.repo_id, 'action':'download_end', 'data':[1]})
+        self.callback('download_end', self.package, size)
 
 class ProgressCallback(object):
     """ Register our own callback for progress indication.
@@ -351,35 +350,34 @@ class ProgressCallback(object):
         self.queue = queue
         self.usercallback = usercallback
 
-    def callback(self, repo_id, event, value):
+    def callback(self, repo_id, event, *args):
         """ Abstracts calling the user callback. """
         if self.usercallback and hasattr(self.usercallback, event):
             method = getattr(self.usercallback, event)
-            try: method(repo_id, value)
+            try: method(repo_id, *args)
             except: pass
 
-    def send(self, repo_id, action, value=None):
+    def send(self, repo_id, action, *args):
         """ Send an event to the main queue for processing.
 
         This gives us the ability to pass data back to the parent process,
         which is mandatory to do aggregated progress indication. This method
         also calls the user callback, if any is defined.
         """
-        self.queue.put({'repo_id':repo_id, 'action': action,
-                        'value':value})
-        self.callback(repo_id, action, value)
+        self.queue.put({'repo_id': repo_id, 'action': action, 'data': args})
+        self.callback(repo_id, action, *args)
 
-    def repo_metadata(self, repo_id, value):
+    def repo_metadata(self, repo_id, status):
         """ Update the status of metadata creation. """
-        self.send(repo_id, 'repo_metadata', value)
+        self.send(repo_id, 'repo_metadata', status)
 
-    def repo_group_data(self, repo_id, value):
+    def repo_group_data(self, repo_id, status):
         """ Update the status of group data creation. """
-        self.send(repo_id, 'repo_group_data', value)
+        self.send(repo_id, 'repo_group_data', status)
 
-    def repo_init(self, repo_id, numpkgs):
+    def repo_init(self, repo_id, numpkgs, islocal=False):
         """ Share the total packages in a repository, when known. """
-        self.send(repo_id, 'repo_init', numpkgs)
+        self.send(repo_id, 'repo_init', numpkgs, islocal)
 
     def gpgkey_exists(self, repo_id, keyname):
         """ Called when a gpg key already exists """
@@ -393,6 +391,10 @@ class ProgressCallback(object):
         """ Called when a gpg key has an error """
         self.send(repo_id, 'gpgkey_error', error)
 
+    def repo_link_set(self, repo_id, link_type, target):
+        """ Called when a repo link is created """
+        self.send(repo_id, 'repo_link_set', link_type, target)
+
     def repo_complete(self, repo_id):
         """ Called when a repository completes downloading all packages. """
         self.send(repo_id, 'repo_complete')
@@ -401,14 +403,14 @@ class ProgressCallback(object):
         """ Called when a repository throws an exception. """
         self.send(repo_id, 'repo_error', error)
 
-    def local_pkg_exists(self, repo_id, pkgname):
+    def pkg_exists(self, repo_id, pkgname):
         """ Called when a download will be skipped because it already exists """
-        self.send(repo_id, 'local_pkg_exists', pkgname)
+        self.send(repo_id, 'pkg_exists', pkgname)
 
     def delete_pkg(self, repo_id, pkgname):
         """ Called when a package is deleted from a repository """
         self.send(repo_id, 'delete_pkg', pkgname)
 
-    def link_pkg(self, repo_id, pkgname):
+    def link_local_pkg(self, repo_id, pkgname, size):
         """ Called when a package is linked from a local repository """
-        self.send(repo_id, 'link_pkg', pkgname)
+        self.send(repo_id, 'link_local_pkg', pkgname, size)
