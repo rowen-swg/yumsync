@@ -75,7 +75,9 @@ Option | Type | Default  | Description
 `checksum` | `string` | `sha256` | What type of checksum to use when generating repo metadata. `sha256` is generally what you want. If the repository will be consumed by a CentOS 5 machine, use `sha1`.
 `combined_metadata` | `boolean` | `false` | If using versioned snapshots, also create metadata in the root of the mirrored repository for all available packages.
 `delete` | `boolean` | `false` | Whether or not to delete packages that have been synced, but are no longer present in the repository being mirrored (local or remote). When using `link_type` of `symlink`, packages won't be deleted, but will be excluded from metadata.
-`gpgkey` | `string` | `none` | Url (if local, prefix with `file://`) to the GPG key to store along side the mirror.
+`excludepkgs` | `string`, `array` | `none` | Packages to be excluded from the repo. This option supports globbing (e.g. `kernel*`).
+`gpgkey` | `string`, `array` | `none` | Url (if local, prefix with `file://`) to the GPG key to store along side the mirror.
+`includepkgs` | `string`, `array` | `none` | Packages to be included from the repo. This option supports globbing (e.g. `kernel*`). Packages not included with be ignored.
 `link_type` | `string` | `symlink` | Type of link used when creating versioned snapshots or when linking to local packages. Valid values are `hardlink` or `symlink`.
 `local_dir` | `string` | `none` | Path to a local folder that contains rpms. These rpms will be used to create a local repository. Supports versioned or unversioned, symlinks or hardlinks.
 `mirrorlist` | `string` | `none` | Mirrorlist that will be used to retrieve the desired repository.

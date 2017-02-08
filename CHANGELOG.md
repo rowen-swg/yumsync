@@ -1,6 +1,15 @@
 Yumsync CHANGELOG
 =================
 
+v1.1.0 (2017-02-08)
+-------------------
+
+### Feature
+
+* Add support for `includepkgs` and `excludepkgs` for repo configuration
+* Allow multiple GPG keys per repo
+* Version number is now stored in `metadata.json`
+
 v1.0.0 (2016-09-28)
 -------------------
 
@@ -17,14 +26,14 @@ This release is a major refactor of yumsync. It's goal was to simplify the code 
 ### Bugfix
 
 * Handle switching between hardlink and symlink gracefully
-* Covered more edge cases when creating directories and symlinks
+* Cover more edge cases when creating directories and symlinks
 
 v0.4.0 (2016-09-15)
 -------------------
 
 ### Feature
 
-* Added --version flag to display version
+* Add --version flag to display version
 * GPG key download happens in each repo's sync thread
 * GPG key info is now logged
 
