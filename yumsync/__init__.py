@@ -5,8 +5,7 @@ import signal
 import urlparse
 from yumsync import util, progress
 from yumsync.log import log
-
-__version__ = '1.0.0'
+from yumsync.version import __version__
 
 def sync(repos=[], callback=None):
     """ Mirror repositories with configuration data from multiple sources.

@@ -30,6 +30,8 @@ class YumRepo(object):
 
         # set actual repo object
         self.__repo_obj = self._get_repo_obj(repoid, opts['local_dir'], opts['baseurl'], opts['mirrorlist'])
+        self.__repo_obj.includepkgs = opts['includepkgs']
+        self.__repo_obj.exclude = opts['excludepkgs']
         self.id = repoid
         self.checksum = opts['checksum']
         self.combine = opts['combined_metadata'] if opts['version'] else None
@@ -95,8 +97,12 @@ class YumRepo(object):
             opts['combined_metadata'] = None
         if not 'delete' in opts:
             opts['delete'] = None
+        if not 'excludepkgs' in opts:
+            opts['excludepkgs'] = None
         if not 'gpgkey' in opts:
             opts['gpgkey'] = None
+        if not 'includepkgs' in opts:
+            opts['includepkgs'] = None
         if 'link_type' in opts and type(opts['link_type']) is str:
             opts['link_type'] = opts['link_type'].lower()
         if not 'link_type' in opts or (opts['link_type'] != 'symlink' and opts['link_type'] != 'hardlink'):
@@ -125,9 +131,21 @@ class YumRepo(object):
         cls._validate_type(opts['checksum'], 'checksum', str, None)
         cls._validate_type(opts['combined_metadata'], 'combined_metadata', bool, None)
         cls._validate_type(opts['delete'], 'delete', bool, None)
-        cls._validate_type(opts['gpgkey'], 'gpgkey', str, None)
-        if opts['gpgkey'] is not None:
+        cls._validate_type(opts['excludepkgs'], 'excludepkgs', str, list, None)
+        if type(opts['excludepkgs']) is list:
+            for e in opts['excludepkgs']:
+                cls._validate_type(e, 'excludepkgs (in list)', str)
+        cls._validate_type(opts['gpgkey'], 'gpgkey', str, list, None)
+        if type(opts['gpgkey']) is list:
+            for g in opts['gpgkey']:
+                cls._validate_type(g, 'gpgkey (in list)', str)
+                cls._validate_url(g)
+        elif opts['gpgkey'] is str:
             cls._validate_url(opts['gpgkey'])
+        cls._validate_type(opts['includepkgs'], 'includepkgs', str, list, None)
+        if type(opts['includepkgs']) is list:
+            for i in opts['includepkgs']:
+                cls._validate_type(i, 'includepkgs (in list)', str)
         cls._validate_type(opts['link_type'], 'link_type', str)
         cls._validate_type(opts['local_dir'], 'local_dir', str, None)
         cls._validate_type(opts['mirrorlist'], 'mirrorlist', str, None)
@@ -196,20 +214,27 @@ class YumRepo(object):
 
     def download_gpgkey(self):
         if self.gpgkey:
-            try:
-                keyname = os.path.basename(urlparse(self.gpgkey).path)
-                key_path = os.path.join(self.dir, keyname)
-                if not os.path.exists(key_path):
-                    key_data = urlopen(self.gpgkey)
-                    with open(key_path, 'w') as f:
-                        f.write(key_data.read())
-                    key_data.close()
-                    self._callback('gpgkey_download', os.path.basename(key_path))
-                else:
-                    self._callback('gpgkey_exists', os.path.basename(key_path))
-                return key_path
-            except Exception as e:
-                self._callback('gpgkey_error', str(e))
+            gpgkey_paths = []
+            if type(self.gpgkey) is list:
+                gpgkey_iter = self.gpgkey
+            else:
+                gpgkey_iter = [self.gpgkey]
+            for gpgkey in gpgkey_iter:
+                try:
+                    keyname = os.path.basename(urlparse(gpgkey).path)
+                    key_path = os.path.join(self.dir, keyname)
+                    if not os.path.exists(key_path):
+                        key_data = urlopen(gpgkey)
+                        with open(key_path, 'w') as f:
+                            f.write(key_data.read())
+                        key_data.close()
+                        self._callback('gpgkey_download', os.path.basename(key_path))
+                    else:
+                        self._callback('gpgkey_exists', os.path.basename(key_path))
+                    gpgkey_paths.append(key_path)
+                except Exception as e:
+                    self._callback('gpgkey_error', str(e))
+            return gpgkey_paths
         return None
 
     def prepare_packages(self):
