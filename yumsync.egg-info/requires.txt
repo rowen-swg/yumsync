@@ -1,3 +1,0 @@
-blessings
-PyYAML
-pyliblzma
