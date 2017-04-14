@@ -1,6 +1,12 @@
 Yumsync CHANGELOG
 =================
 
+v1.1.1 (2017-04-13)
+-------------------
+
+* Cleanup packaging
+* Use metadata.py instead of metadata.json for versioning
+
 v1.1.0 (2017-02-08)
 -------------------
 

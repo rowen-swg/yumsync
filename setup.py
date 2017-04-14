@@ -16,7 +16,6 @@ setup(
     url='https://github.com/jrwesolo/yumsync',
     packages=['yumsync'],
     scripts=['bin/yumsync'],
-    package_data={'yumsync': ['CHANGELOG.md', 'COPYING', 'README.md',]},
     install_requires=['blessings', 'PyYAML', 'pyliblzma'],
     zip_safe=False
 )
