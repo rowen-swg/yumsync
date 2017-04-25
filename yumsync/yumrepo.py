@@ -41,6 +41,7 @@ class YumRepo(object):
         self.local_dir = opts['local_dir']
         self.stable = opts['stable']
         self.version = time.strftime(opts['version']) if opts['version'] else None
+        self.srcpkgs = opts['srcpkgs']
 
         # root directory for repo and packages
         self.dir = os.path.join(base_dir, self._friendly(self.id))
@@ -117,6 +118,8 @@ class YumRepo(object):
             opts['stable'] = str(opts['stable'])
         if not 'version' in opts:
             opts['version'] = '%Y/%m/%d'
+        if not 'srcpkgs' in opts:
+            opts['srcpkgs'] = None
         return opts
 
     @classmethod
@@ -153,6 +156,7 @@ class YumRepo(object):
             cls._validate_url(opts['mirrorlist'])
         cls._validate_type(opts['stable'], 'stable', str, None)
         cls._validate_type(opts['version'], 'version', str, None)
+        cls._validate_type(opts['srcpkgs'], 'srcpkgs', bool, None)
 
     @staticmethod
     def _sanitize(text):
@@ -317,16 +321,16 @@ class YumRepo(object):
 
         try:
             yb = YumBase()
+            if self.srcpkgs:
+                if not 'src' in yb.arch.archlist:
+                    yb.arch.archlist.append('src')
             repo = self._set_path(self.package_dir)
             if self.__yum_callback_obj:
                 repo.setCallback(self.__yum_callback_obj)
             yb.repos.add(repo)
             yb.repos.enableRepo(repo.id)
             with suppress():
-                # showdups allows us to get multiple versions of the same package.
-                ygh = yb.doPackageLists(showdups=True)
-            # reinstall_available = Available packages which are installed.
-            packages = ygh.available + ygh.reinstall_available
+                packages = yb.pkgSack.returnPackages()
             # Inform about number of packages total in the repo.
             self._callback('repo_init', len(packages))
             # Check if the packages are already downloaded. This is probably a bit
@@ -486,6 +490,7 @@ class YumRepo(object):
         if self.local_dir: raw_info['local_dir'] = self.local_dir
         if self.stable: raw_info['stable'] = self.stable
         if self.version: raw_info['version'] = self.version
+        if self.srcpkgs is not None: raw_info['srcpkgs'] = self.srcpkgs
         friendly_info = ['{}({})'.format(k, raw_info[k]) for k in sorted(raw_info)]
         return '{}: {}'.format(self.id, ', '.join(friendly_info))
 
