@@ -83,10 +83,6 @@ class YumRepo(object):
             raise ValueError('Unsupported URL format "{}"'.format(url))
 
     @staticmethod
-    def _get_package_filename(pkg):
-        return '{}-{}-{}.{}.rpm'.format(pkg.name, pkg.version, pkg.release, pkg.arch)
-
-    @staticmethod
     def _set_default_opts(opts={}):
         if type(opts) is not dict:
             opts = {}
@@ -279,7 +275,6 @@ class YumRepo(object):
         return h
 
     def _download_local_packages(self):
-        packages = []
         try:
             packages = self._validate_packages(self.local_dir, sorted(os.listdir(self.local_dir)))
             self._callback('repo_init', len(packages), True)
@@ -338,13 +333,13 @@ class YumRepo(object):
             # horrible for progress indication.
             for po in packages:
                 local = po.localPkg()
+                self._packages.append(os.path.basename(local))
                 if os.path.exists(local):
                     if yb.verifyPkg(local, po, False):
-                        self._callback('pkg_exists', self._get_package_filename(po))
+                        self._callback('pkg_exists', os.path.basename(local))
             with suppress():
                 yb.downloadPkgs(packages)
 
-            self._packages = [self._get_package_filename(pkg) for pkg in packages]
             self._callback('repo_complete')
         except (KeyboardInterrupt, SystemExit):
             pass
@@ -362,7 +357,6 @@ class YumRepo(object):
                         os.unlink(os.path.join(self.package_dir, _file))
                         self._callback('delete_pkg', _file)
         else:
-            packages = []
             packages_to_validate = sorted(list(set(os.listdir(self.package_dir)) - set(self._packages)))
             self._packages.extend(self._validate_packages(self.package_dir, packages_to_validate))
 

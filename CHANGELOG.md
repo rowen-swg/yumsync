@@ -11,6 +11,7 @@ Yumsync CHANGELOG
 ### Bugfix
 
 * Better support for RPM builds
+* Fix issue when package filename conflicts with package metadata
 
 [v1.1.1]
 --------
