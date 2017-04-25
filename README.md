@@ -1,32 +1,45 @@
-**_This is a fork of an [updated version](https://github.com/vamegh/pakrat) of the pakrat libraries by [Vamegh Hedayati](https://github.com/vamegh), forked from the [original](https://github.com/ryanuber/pakrat) by [Ryan Uber](https://github.com/ryanuber). It is not backwards-compatible._**
+**_This is a fork of an [updated version](https://github.com/vamegh/pakrat)
+of the pakrat libraries by [Vamegh Hedayati](https://github.com/vamegh),
+forked from the [original](https://github.com/ryanuber/pakrat) by
+[Ryan Uber](https://github.com/ryanuber). It is not backwards-compatible._**
 
 Yumsync
 -------
 
-Yumsync is a tool used to mirror yum repositories and optionally version the repository metadata. This will enable the ability of taking frequent snapshots of a repository without worrying about wasted space from duplicate packages.
+Yumsync is a tool used to mirror yum repositories and optionally version
+the repository metadata. This will enable the ability of taking frequent
+snapshots of a repository without worrying about wasted space from
+duplicate packages.
 
 What this supports
 -------------------
 
 * Mirroring remote repositories
 * Creating local repositories (from local packages)
-* User-defined folder structure for public access through Nginx or equivalent
+* User-defined folder structure for public access
+  through Nginx or equivalent
 * Ability to create versioned snapshots of repository metadata
 * Stable and latest links for versioned snapshots
 * Symbolic or hard linking for versioned snapshots
-* Hard linking allows files to be deleted without affecting other versioned snapshots
-* Friendly visual output provided by [blessings](https://pypi.python.org/pypi/blessings) when running under a TTY
-* Logs of sync activity are stored alongside the the repository metadata - this provides easy reporting and troubleshooting
+* Hard linking allows files to be deleted without affecting other
+  versioned snapshots
+* Friendly visual output provided by
+  [blessings](https://pypi.python.org/pypi/blessings)
+  when running under a TTY
+* Logs of sync activity are stored alongside the repository metadata to
+  to provide easier reporting and troubleshooting
 
 Recommended Usage (Docker)
 --------------------------
 
-There is a companion Docker image that makes using Yumsync very simple. It can be found under the namespace [jrwesolo/yumsync](https://hub.docker.com/r/jrwesolo/yumsync/) on the [Docker Registry](https://hub.docker.com). It's corresponding GitHub repository can be found [here](https://github.com/jrwesolo/docker_yumsync). The [README.md](https://github.com/jrwesolo/docker_yumsync/blob/master/README.md) has detailed instructions on its usage. There is also a step-by-step walkthrough under the ["Full Example with Nginx"](https://github.com/jrwesolo/docker_yumsync/blob/master/README.md#full-example-with-nginx) section.
-
-Other Usage Types
------------------
-
-Yumsync can also be used in two other ways. The easiest would be the CLI tool `yumsync`. The second would be by building your own tool and using the Yumsync libraries. If the second method is more your style, please use the [Yumsync CLI](bin/yumsync) as a guide.
+There is a companion Docker image that makes using Yumsync very simple.
+It can be found under the namespace [jrwesolo/yumsync](https://hub.docker.com/r/jrwesolo/yumsync/)
+on the [Docker Registry](https://hub.docker.com). It's corresponding GitHub
+repository can be found [here](https://github.com/jrwesolo/docker_yumsync).
+The [README.md](https://github.com/jrwesolo/docker_yumsync/blob/master/README.md)
+has detailed instructions on its usage. There is also a step-by-step
+walkthrough under the ["Full Example with Nginx"](https://github.com/jrwesolo/docker_yumsync/blob/master/README.md#full-example-with-nginx)
+section.
 
 CLI Usage
 ---------
@@ -52,7 +65,8 @@ optional arguments:
   --stable              Only set stable links for YUM repositories
 ```
 
-The repository configuration is read from a yaml config file. Below is a minimal example of what a config file should look like:
+The repository configuration is read from a yaml config file. Below is a
+minimal example of what a config file should look like:
 
 ```yaml
 ---
@@ -81,16 +95,23 @@ Option | Type | Default  | Description
 `link_type` | `string` | `symlink` | Type of link used when creating versioned snapshots or when linking to local packages. Valid values are `hardlink` or `symlink`.
 `local_dir` | `string` | `none` | Path to a local folder that contains rpms. These rpms will be used to create a local repository. Supports versioned or unversioned, symlinks or hardlinks.
 `mirrorlist` | `string` | `none` | Mirrorlist that will be used to retrieve the desired repository.
+`srcpkgs` | `boolean` | `false` | Whether to download source rpms (e.g `*.src.rpm`, will not download by default).
 `stable` | `string` | `none` | If using versioned snapshots, the version that should be symlinked to `stable` in the mirrored repository.
 `version` | `string` | `%Y/%m/%d` | String used by `strftime` to format the current date and time. Please refer to [strftime.org](http://strftime.org) for details.
 
 ### Local Repositories
 
-Local repositories are designated by the option `local_dir`. The local directory, as well as the packages inside, must be accessible by `yumsync`. `baseurl` and `mirrorlist` are ignored for local repositories. If hard linking is used, ensure that the local packages exist on the same device as the output directory. `yumsync` will throw an error otherwise due to the requirements of hard links.
+Local repositories are designated by the option `local_dir`. The local
+directory, as well as the packages inside, must be accessible by `yumsync`.
+`baseurl` and `mirrorlist` are ignored for local repositories. If hard
+linking is used, ensure that the local packages exist on the same device
+as the output directory. `yumsync` will throw an error otherwise due to
+the requirements of hard links.
 
 ### Example of Directory Structure
 
-Output directory is `/data` for these examples. Directory tree is truncated to minimize verbosity.
+Output directory is `/data` for these examples. Directory tree output is
+truncated to minimize verbosity.
 
 ```bash
 # versioned, symlink
@@ -167,3 +188,10 @@ Output directory is `/data` for these examples. Directory tree is truncated to m
             └── extras
                 └── x86_64 -> ../../../../centos_6_extras_x86_64
 ```
+
+Other Usage Types
+-----------------
+
+Another usage option would be by building your own tool and using the
+Yumsync libraries. If the second method is more your style, please use
+the [Yumsync CLI](bin/yumsync) as a guide.
