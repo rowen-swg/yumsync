@@ -8,6 +8,10 @@ Yumsync CHANGELOG
 
 * Add support for downloading source packages
 
+### Bugfix
+
+* Better support for RPM builds
+
 [v1.1.1]
 --------
 
