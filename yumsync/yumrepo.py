@@ -1,16 +1,19 @@
+# standard imports
 from contextlib import contextmanager
 from urllib2 import urlopen
 from urlparse import urlparse
-from yumsync.yumbase import YumBase
 import copy
-import createrepo
 import os
 import shutil
 import sys
 import tempfile
 import time
-import util
+# third-party imports
+import createrepo
 import yum
+# local imports
+from yumsync.yumbase import YumBase
+import yumsync.util as util
 
 class MetadataBuildError(Exception):
     def __init__(self, *args, **kwargs):
@@ -22,8 +25,10 @@ class PackageDownloadError(Exception):
 
 class YumRepo(object):
 
-    def __init__(self, repoid, base_dir, opts={}):
+    def __init__(self, repoid, base_dir, opts=None):
         # make sure good defaults
+        if opts is None:
+            opts = {}
         opts = self._set_default_opts(opts)
         self._validate_opts(opts)
         self._validate_type(base_dir, 'base_dir', str)
@@ -59,7 +64,7 @@ class YumRepo(object):
         self.__yum_callback_obj = None
 
         # set repo placeholders
-        self._packages = None
+        self._packages = []
         self._comps = None
 
     @staticmethod
@@ -73,7 +78,7 @@ class YumRepo(object):
             valid_types.remove(None)
             valid_types.sort()
             valid_types.append(type(None))
-        if type(obj) not in valid_types:
+        if not isinstance(obj, tuple(valid_types)):
             valid_str = ', '.join([t.__name__ for t in valid_types])
             raise TypeError('{} is {}; must be {}'.format(obj_name, type(obj).__name__, valid_str))
 
@@ -83,66 +88,66 @@ class YumRepo(object):
             raise ValueError('Unsupported URL format "{}"'.format(url))
 
     @staticmethod
-    def _set_default_opts(opts={}):
-        if type(opts) is not dict:
+    def _set_default_opts(opts=None):
+        if not isinstance(opts, dict):
             opts = {}
-        if not 'baseurl' in opts:
+        if 'baseurl' not in opts:
             opts['baseurl'] = None
-        if not 'checksum' in opts:
+        if 'checksum' not in opts:
             opts['checksum'] = None
-        if not 'combined_metadata' in opts:
+        if 'combined_metadata' not in opts:
             opts['combined_metadata'] = None
-        if not 'delete' in opts:
+        if 'delete' not in opts:
             opts['delete'] = None
-        if not 'excludepkgs' in opts:
+        if 'excludepkgs' not in opts:
             opts['excludepkgs'] = None
-        if not 'gpgkey' in opts:
+        if 'gpgkey' not in opts:
             opts['gpgkey'] = None
-        if not 'includepkgs' in opts:
+        if 'includepkgs' not in opts:
             opts['includepkgs'] = None
-        if 'link_type' in opts and type(opts['link_type']) is str:
+        if 'link_type' in opts and isinstance(opts['link_type'], str):
             opts['link_type'] = opts['link_type'].lower()
-        if not 'link_type' in opts or (opts['link_type'] != 'symlink' and opts['link_type'] != 'hardlink'):
+        if 'link_type' not in opts or (opts['link_type'] != 'symlink' and opts['link_type'] != 'hardlink'):
             opts['link_type'] = 'symlink'
-        if not 'local_dir' in opts:
+        if 'local_dir' not in opts:
             opts['local_dir'] = None
-        if not 'mirrorlist' in opts:
+        if 'mirrorlist' not in opts:
             opts['mirrorlist'] = None
-        if not 'stable' in opts:
+        if 'stable' not in opts:
             opts['stable'] = None
-        if type(opts['stable']) is not str and opts['stable'] is not None:
+        if not isinstance(opts['stable'], str) and opts['stable'] is not None:
             opts['stable'] = str(opts['stable'])
-        if not 'version' in opts:
+        if 'version' not in opts:
             opts['version'] = '%Y/%m/%d'
-        if not 'srcpkgs' in opts:
+        if 'srcpkgs' not in opts:
             opts['srcpkgs'] = None
         return opts
 
     @classmethod
     def _validate_opts(cls, opts):
         cls._validate_type(opts['baseurl'], 'baseurl', str, list, None)
-        if type(opts['baseurl']) is list:
+        if isinstance(opts['baseurl'], list):
             for b in opts['baseurl']:
                 cls._validate_type(b, 'baseurl (in list)', str)
                 cls._validate_url(b)
-        elif type(opts['baseurl']) is str:
+        elif isinstance(opts['baseurl'], str):
             cls._validate_url(opts['baseurl'])
         cls._validate_type(opts['checksum'], 'checksum', str, None)
         cls._validate_type(opts['combined_metadata'], 'combined_metadata', bool, None)
         cls._validate_type(opts['delete'], 'delete', bool, None)
         cls._validate_type(opts['excludepkgs'], 'excludepkgs', str, list, None)
-        if type(opts['excludepkgs']) is list:
+        if isinstance(opts['excludepkgs'], list):
             for e in opts['excludepkgs']:
                 cls._validate_type(e, 'excludepkgs (in list)', str)
         cls._validate_type(opts['gpgkey'], 'gpgkey', str, list, None)
-        if type(opts['gpgkey']) is list:
+        if isinstance(opts['gpgkey'], list):
             for g in opts['gpgkey']:
                 cls._validate_type(g, 'gpgkey (in list)', str)
                 cls._validate_url(g)
         elif opts['gpgkey'] is str:
             cls._validate_url(opts['gpgkey'])
         cls._validate_type(opts['includepkgs'], 'includepkgs', str, list, None)
-        if type(opts['includepkgs']) is list:
+        if isinstance(opts['includepkgs'], list):
             for i in opts['includepkgs']:
                 cls._validate_type(i, 'includepkgs (in list)', str)
         cls._validate_type(opts['link_type'], 'link_type', str)
@@ -166,7 +171,7 @@ class YumRepo(object):
     def _get_repo_obj(repoid, localdir=None, baseurl=None, mirrorlist=None):
         yb = YumBase()
         if baseurl is not None:
-            if type(baseurl) is list:
+            if isinstance(baseurl, list):
                 repo = yb.add_enable_repo(repoid, baseurls=baseurl)
             else:
                 repo = yb.add_enable_repo(repoid, baseurls=[baseurl])
@@ -193,7 +198,7 @@ class YumRepo(object):
         return repo
 
     def setup_directories(self):
-        if self.local_dir and 'symlink' == self.link_type:
+        if self.local_dir and self.link_type == 'symlink':
             if not os.path.islink(self.package_dir) and os.path.isdir(self.package_dir):
                 shutil.rmtree(self.package_dir)
             util.symlink(self.package_dir, self.local_dir)
@@ -207,7 +212,7 @@ class YumRepo(object):
                 os.unlink(self.version_package_dir)
             elif os.path.isdir(self.version_package_dir):
                 shutil.rmtree(self.version_package_dir)
-            if 'symlink' == self.link_type:
+            if self.link_type == 'symlink':
                 util.symlink(self.version_package_dir, os.path.relpath(self.package_dir, self.version_dir))
             else: # hardlink
                 util.make_dir(self.version_package_dir)
@@ -215,7 +220,7 @@ class YumRepo(object):
     def download_gpgkey(self):
         if self.gpgkey:
             gpgkey_paths = []
-            if type(self.gpgkey) is list:
+            if isinstance(self.gpgkey, list):
                 gpgkey_iter = self.gpgkey
             else:
                 gpgkey_iter = [self.gpgkey]
@@ -251,9 +256,9 @@ class YumRepo(object):
     @classmethod
     def _validate_packages(cls, directory, packages):
         ts = yum.rpmUtils.transaction.initReadOnlyTransaction()
-        if type(packages) is str:
+        if isinstance(packages, str):
             return cls._validate_package(ts, directory, packages)
-        elif type(packages) is list:
+        elif isinstance(packages, list):
             valid = []
             for pkg in packages:
                 if cls._validate_package(ts, directory, pkg):
@@ -269,7 +274,7 @@ class YumRepo(object):
         try:
             pkg_path = os.path.join(directory, package)
             h = yum.rpmUtils.miscutils.hdrFromPackage(ts, pkg_path)
-        except yum.rpmUtils.RpmUtilsError as e:
+        except yum.rpmUtils.RpmUtilsError:
             pass
 
         return h
@@ -280,7 +285,7 @@ class YumRepo(object):
             self._callback('repo_init', len(packages), True)
 
             for _file in packages:
-                if 'hardlink' == self.link_type:
+                if self.link_type == 'hardlink':
                     status = util.hardlink(os.path.join(self.local_dir, _file), os.path.join(self.package_dir, _file))
                     if status:
                         size = os.path.getsize(os.path.join(self.local_dir, _file))
@@ -349,9 +354,10 @@ class YumRepo(object):
 
     def prune_packages(self):
         # exit if we don't have packages
-        if self._packages is None: return
+        if not self._packages:
+            return
         if self.delete:
-            if not self.version or 'symlink' != self.link_type:
+            if not self.version or self.link_type != 'symlink':
                 for _file in os.listdir(self.package_dir):
                     if _file not in self._packages:
                         os.unlink(os.path.join(self.package_dir, _file))
@@ -362,8 +368,9 @@ class YumRepo(object):
 
     def version_packages(self):
         # exit if we don't have packages
-        if self._packages is None: return
-        if self.version and 'hardlink' == self.link_type:
+        if not self._packages:
+            return
+        if self.version and self.link_type == 'hardlink':
             for pkg in self._packages:
                 source_file = os.path.join(self.package_dir, pkg)
                 target_file = os.path.join(self.version_package_dir, pkg)
@@ -392,7 +399,7 @@ class YumRepo(object):
         else:
             packages = [os.path.join(os.path.basename(self.package_dir), pkg) for pkg in self._packages]
 
-        if 'sha' == self.checksum or 'sha1' == self.checksum:
+        if self.checksum == 'sha' or self.checksum == 'sha1':
             sumtype = 'sha'
         else:
             sumtype = 'sha256'
@@ -476,15 +483,24 @@ class YumRepo(object):
 
     def __str__(self):
         raw_info = {}
-        if self.checksum: raw_info['checksum'] = self.checksum
-        if self.combine is not None: raw_info['combine'] = self.combine
-        if self.delete is not None: raw_info['delete'] = self.delete
-        if self.gpgkey: raw_info['gpgkey'] = self.gpgkey
-        if self.link_type: raw_info['link_type'] = self.link_type
-        if self.local_dir: raw_info['local_dir'] = self.local_dir
-        if self.stable: raw_info['stable'] = self.stable
-        if self.version: raw_info['version'] = self.version
-        if self.srcpkgs is not None: raw_info['srcpkgs'] = self.srcpkgs
+        if self.checksum:
+            raw_info['checksum'] = self.checksum
+        if self.combine is not None:
+            raw_info['combine'] = self.combine
+        if self.delete is not None:
+            raw_info['delete'] = self.delete
+        if self.gpgkey:
+            raw_info['gpgkey'] = self.gpgkey
+        if self.link_type:
+            raw_info['link_type'] = self.link_type
+        if self.local_dir:
+            raw_info['local_dir'] = self.local_dir
+        if self.stable:
+            raw_info['stable'] = self.stable
+        if self.version:
+            raw_info['version'] = self.version
+        if self.srcpkgs is not None:
+            raw_info['srcpkgs'] = self.srcpkgs
         friendly_info = ['{}({})'.format(k, raw_info[k]) for k in sorted(raw_info)]
         return '{}: {}'.format(self.id, ', '.join(friendly_info))
 

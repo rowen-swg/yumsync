@@ -7,7 +7,7 @@ from yumsync import util, progress
 from yumsync.log import log
 from yumsync.metadata import __version__
 
-def sync(repos=[], callback=None):
+def sync(repos=None, callback=None):
     """ Mirror repositories with configuration data from multiple sources.
 
     Handles all input validation and higher-level logic before passing control
@@ -15,12 +15,15 @@ def sync(repos=[], callback=None):
     repository to alleviate the impact of slow mirrors on faster ones.
     """
 
+    if repos is None:
+        repos = []
+
     prog = progress.Progress()  # callbacks talk to this object
     manager = multiprocessing.Manager()
     queue = manager.Queue()
     processes = []
 
-    def signal_handler(signum, frame):
+    def signal_handler(_signum, _frame):
         """ Inner method for terminating threads on signal events.
 
         This method uses os.kill() to send a SIGKILL directly to the process ID
@@ -29,10 +32,10 @@ def sync(repos=[], callback=None):
         """
         log('Caught exit signal - aborting')
         while len(processes) > 0:
-            for p in processes:
-                os.kill(p.pid, signal.SIGKILL)
-                if not p.is_alive():
-                    processes.remove(p)
+            for proc in processes:
+                os.kill(proc.pid, signal.SIGKILL)
+                if not proc.is_alive():
+                    processes.remove(proc)
         sys.exit(1) # safe to do exit() here because we are a worker
 
     # Catch user-cancelled or killed signals to terminate threads.
@@ -47,9 +50,9 @@ def sync(repos=[], callback=None):
         repo.set_yum_callback(yumcallback)
         repo.set_repo_callback(repocallback)
 
-        p = multiprocessing.Process(target=repo.sync)
-        processes.append(p)
-        p.start()
+        proc = multiprocessing.Process(target=repo.sync)
+        processes.append(proc)
+        proc.start()
 
     while len(processes) > 0:
         # If data is waiting in the queue from the workers, process it. This
@@ -57,30 +60,30 @@ def sync(repos=[], callback=None):
         # hold all of the results. (This might be easier with Python 3's
         # nonlocal keyword).
         while not queue.empty():
-            e = queue.get()
-            if not 'action' in e:
+            event = queue.get()
+            if not 'action' in event:
                 continue
-            if e['action'] == 'repo_init' and 'data' in e:
-                prog.update(e['repo_id'], set_total=e['data'][0])
-            elif e['action'] == 'download_end' and 'data' in e:
-                prog.update(e['repo_id'], pkgs_downloaded=e['data'][0])
-            elif e['action'] == 'repo_metadata' and 'data' in e:
-                prog.update(e['repo_id'], repo_metadata=e['data'][0])
-            elif e['action'] == 'repo_error' and 'data' in e:
-                prog.update(e['repo_id'], repo_error=e['data'][0])
-            elif e['action'] == 'pkg_exists':
-                prog.update(e['repo_id'], pkgs_downloaded=1)
-            elif e['action'] == 'link_local_pkg':
-                prog.update(e['repo_id'], pkgs_downloaded=1)
-            elif e['action'] == 'repo_complete':
+            if event['action'] == 'repo_init' and 'data' in event:
+                prog.update(event['repo_id'], set_total=event['data'][0])
+            elif event['action'] == 'download_end' and 'data' in event:
+                prog.update(event['repo_id'], pkgs_downloaded=event['data'][0])
+            elif event['action'] == 'repo_metadata' and 'data' in event:
+                prog.update(event['repo_id'], repo_metadata=event['data'][0])
+            elif event['action'] == 'repo_error' and 'data' in event:
+                prog.update(event['repo_id'], repo_error=event['data'][0])
+            elif event['action'] == 'pkg_exists':
+                prog.update(event['repo_id'], pkgs_downloaded=1)
+            elif event['action'] == 'link_local_pkg':
+                prog.update(event['repo_id'], pkgs_downloaded=1)
+            elif event['action'] == 'repo_complete':
                 pass # should already know this, but handle it anyways.
-            elif e['action'] == 'delete_pkg':
+            elif event['action'] == 'delete_pkg':
                 pass
-            elif e['action'] == 'repo_group_data':
+            elif event['action'] == 'repo_group_data':
                 pass
-        for p in processes:
-            if not p.is_alive():
-                processes.remove(p)
+        for proc in processes:
+            if not proc.is_alive():
+                processes.remove(proc)
 
     # Return tuple (#repos, #fail, elapsed time)
     return (len(repos), prog.totals['errors'], prog.elapsed())

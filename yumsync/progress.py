@@ -23,13 +23,13 @@ class Progress(object):
     errors = []
 
     def __init__(self):
-      """ records the time the sync started.
-          and initialise blessings terminal """
-      self.start = datetime.datetime.now()
-      self.linecount = 0
-      if sys.stdout.isatty():
-          self.term = Terminal()
-          sys.stdout.write(self.term.clear())
+        """ records the time the sync started.
+            and initialise blessings terminal """
+        self.start = datetime.datetime.now()
+        self.linecount = 0
+        if sys.stdout.isatty():
+            self.term = Terminal()
+            sys.stdout.write(self.term.clear())
 
     def __del__(self):
         """ destructor - need to reset the terminal ."""
@@ -76,7 +76,8 @@ class Progress(object):
                                    self.term.normal)
         return string
 
-    def pct(self, current, total):
+    @classmethod
+    def pct(cls, current, total):
         """ Calculate a percentage. """
         val = current / float(total) * 100
         formatted = '{:0.1f}%'.format(val)
@@ -90,7 +91,8 @@ class Progress(object):
         """
         return str(datetime.datetime.now() - self.start).split('.')[0]
 
-    def format_header(self, repos):
+    def format_header(self):
+        repos = self.repos.keys()
         max_repo = len(max(repos, key=len))
 
         repo = '{:<{}s}'.format('Repository', max_repo)
@@ -102,7 +104,8 @@ class Progress(object):
 
         return header_str, len(repo), len(done), len(total), len(complete), len(metadata)
 
-    def format_line(self, reponame, package_counts, percent, repomd):
+    @classmethod
+    def format_line(cls, reponame, package_counts, percent, repomd):
         """ Return a string formatted for output.
 
         Since there is a common column layout in the progress indicator, we can
@@ -113,16 +116,17 @@ class Progress(object):
     def represent_repo_pkgs(self, repo_id, a, b):
         """ Format the ratio of packages in a repository. """
         numpkgs = self.repos[repo_id]['numpkgs']
-        dlpkgs  = self.repos[repo_id]['dlpkgs']
+        dlpkgs = self.repos[repo_id]['dlpkgs']
         return self.represent_pkgs(dlpkgs, numpkgs, a, b)
 
     def represent_total_pkgs(self, a, b):
         """ Format the total number of packages in all repositories. """
         numpkgs = self.totals['numpkgs']
-        dlpkgs  = self.totals['dlpkgs']
+        dlpkgs = self.totals['dlpkgs']
         return self.represent_pkgs(dlpkgs, numpkgs, a, b)
 
-    def represent_pkgs(self, dlpkgs, numpkgs, a, b):
+    @classmethod
+    def represent_pkgs(cls, dlpkgs, numpkgs, a, b):
         """ Represent a package ratio.
 
         This will display nothing if the number of packages is 0 or unknown, or
@@ -139,13 +143,13 @@ class Progress(object):
     def represent_repo_percent(self, repo_id, length):
         """ Display the percentage of packages downloaded in a repository. """
         numpkgs = self.repos[repo_id]['numpkgs']
-        dlpkgs  = self.repos[repo_id]['dlpkgs']
+        dlpkgs = self.repos[repo_id]['dlpkgs']
         return self.represent_percent(dlpkgs, numpkgs, length)
 
     def represent_total_percent(self, length):
         """ Display the overall percentage of downloaded packages. """
         numpkgs = self.totals['numpkgs']
-        dlpkgs  = self.totals['dlpkgs']
+        dlpkgs = self.totals['dlpkgs']
         return self.represent_percent(dlpkgs, numpkgs, length)
 
     def represent_total_metadata_percent(self, length):
@@ -182,14 +186,14 @@ class Progress(object):
         repo = '{:<{}s}'.format(repo_id, h1)
 
         if 'error' in self.repos[repo_id]:
-            repo     = self.color(repo, 'red')
+            repo = self.color(repo, 'red')
             packages = self.color('{:^{}s}'.format('error', h2 + h3 + 1), 'red')
-            percent  = self.color('{:^{}s}'.format('-', h4), 'red')
+            percent = self.color('{:^{}s}'.format('-', h4), 'red')
             metadata = self.color('{:^{}s}'.format('-', h5), 'red')
         else:
-            repo     = self.color(repo, 'blue')
+            repo = self.color(repo, 'blue')
             packages = self.represent_repo_pkgs(repo_id, h2, h3)
-            percent  = self.represent_repo_percent(repo_id, h4)
+            percent = self.represent_repo_percent(repo_id, h4)
             metadata = self.represent_repomd(repo_id, h5)
             if percent == 'complete':
                 percent = self.color(percent, 'green')
@@ -200,9 +204,9 @@ class Progress(object):
         return self.format_line(repo, packages, percent, metadata)
 
     def represent_total(self, h1, h2, h3, h4, h5):
-        total    = self.color('{:>{}s}'.format('Total', h1), 'yellow')
+        total = self.color('{:>{}s}'.format('Total', h1), 'yellow')
         packages = self.represent_total_pkgs(h2, h3)
-        percent  = self.represent_total_percent(h4)
+        percent = self.represent_total_percent(h4)
         metadata = self.represent_total_metadata_percent(h5)
         if percent == 'complete':
             percent = self.color(percent, 'green')
@@ -242,7 +246,7 @@ class Progress(object):
                         self.repos[repo_id]['error'] = True
 
         self.linecount = 0  # reset line counter
-        header, h1, h2, h3, h4, h5 = self.format_header(self.repos.keys())
+        header, h1, h2, h3, h4, h5 = self.format_header()
         self.emit('-' * len(header))
         self.emit(self.color('{}'.format(header), 'green'))
         self.emit('-' * len(header))
@@ -292,6 +296,7 @@ class YumProgress(object):
         """ Create the instance and set prepared config """
         self.repo_id = repo_id
         self.queue = queue
+        self.package = None
         self.usercallback = usercallback
 
     def callback(self, method, *args):
@@ -303,8 +308,10 @@ class YumProgress(object):
         """
         if self.usercallback and hasattr(self.usercallback, method):
             method = getattr(self.usercallback, method)
-            try: method(self.repo_id, *args)
-            except: pass
+            try:
+                method(self.repo_id, *args)
+            except:
+                pass
 
     def start(self, filename=None, url=None, basename=None, size=None, text=None):
         """ Called by urlgrabber when a file download starts.
@@ -354,8 +361,10 @@ class ProgressCallback(object):
         """ Abstracts calling the user callback. """
         if self.usercallback and hasattr(self.usercallback, event):
             method = getattr(self.usercallback, event)
-            try: method(repo_id, *args)
-            except: pass
+            try:
+                method(repo_id, *args)
+            except:
+                pass
 
     def send(self, repo_id, action, *args):
         """ Send an event to the main queue for processing.

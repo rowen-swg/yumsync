@@ -1,6 +1,5 @@
-import os
-from setuptools import setup
 from distutils.util import convert_path
+from setuptools import setup
 
 main_metadata = {}
 metadata_path = convert_path('yumsync/metadata.py')

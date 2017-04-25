@@ -12,6 +12,7 @@ Yumsync CHANGELOG
 
 * Better support for RPM builds
 * Fix issue when package filename conflicts with package metadata
+* PEP8-style fixes using Pylint
 
 [v1.1.1]
 --------
