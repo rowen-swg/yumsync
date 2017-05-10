@@ -4,6 +4,11 @@ Yumsync CHANGELOG
 [Unreleased]
 ------------
 
+### Feature
+
+* Add ability to only download the newest packages if there are
+  multiple versions
+
 [v1.2.0]
 --------
 
