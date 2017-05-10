@@ -47,6 +47,7 @@ class YumRepo(object):
         self.stable = opts['stable']
         self.version = time.strftime(opts['version']) if opts['version'] else None
         self.srcpkgs = opts['srcpkgs']
+        self.newestonly = opts['newestonly']
 
         # root directory for repo and packages
         self.dir = os.path.join(base_dir, self._friendly(self.id))
@@ -121,6 +122,8 @@ class YumRepo(object):
             opts['version'] = '%Y/%m/%d'
         if 'srcpkgs' not in opts:
             opts['srcpkgs'] = None
+        if 'newestonly' not in opts:
+            opts['newestonly'] = None
         return opts
 
     @classmethod
@@ -158,6 +161,7 @@ class YumRepo(object):
         cls._validate_type(opts['stable'], 'stable', str, None)
         cls._validate_type(opts['version'], 'version', str, None)
         cls._validate_type(opts['srcpkgs'], 'srcpkgs', bool, None)
+        cls._validate_type(opts['newestonly'], 'newestonly', bool, None)
 
     @staticmethod
     def _sanitize(text):
@@ -330,7 +334,10 @@ class YumRepo(object):
             yb.repos.add(repo)
             yb.repos.enableRepo(repo.id)
             with suppress():
-                packages = yb.pkgSack.returnPackages()
+                if self.newestonly:
+                  packages = yb.pkgSack.returnNewestByNameArch()
+                else:
+                  packages = yb.pkgSack.returnPackages()
             # Inform about number of packages total in the repo.
             self._callback('repo_init', len(packages))
             # Check if the packages are already downloaded. This is probably a bit
@@ -501,6 +508,8 @@ class YumRepo(object):
             raw_info['version'] = self.version
         if self.srcpkgs is not None:
             raw_info['srcpkgs'] = self.srcpkgs
+        if self.newestonly is not None:
+            raw_info['newestonly'] = self.newestonly
         friendly_info = ['{}({})'.format(k, raw_info[k]) for k in sorted(raw_info)]
         return '{}: {}'.format(self.id, ', '.join(friendly_info))
 

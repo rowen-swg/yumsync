@@ -95,6 +95,7 @@ Option | Type | Default  | Description
 `link_type` | `string` | `symlink` | Type of link used when creating versioned snapshots or when linking to local packages. Valid values are `hardlink` or `symlink`.
 `local_dir` | `string` | `none` | Path to a local folder that contains rpms. These rpms will be used to create a local repository. Supports versioned or unversioned, symlinks or hardlinks.
 `mirrorlist` | `string` | `none` | Mirrorlist that will be used to retrieve the desired repository.
+`newestonly` | `boolean` | `false` | Only download newest rpm of a package name/arch.
 `srcpkgs` | `boolean` | `false` | Whether to download source rpms (e.g `*.src.rpm`, will not download by default).
 `stable` | `string` | `none` | If using versioned snapshots, the version that should be symlinked to `stable` in the mirrored repository.
 `version` | `string` | `%Y/%m/%d` | String used by `strftime` to format the current date and time. Please refer to [strftime.org](http://strftime.org) for details.
