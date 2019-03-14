@@ -48,6 +48,7 @@ class YumRepo(object):
         self.version = time.strftime(opts['version']) if opts['version'] else None
         self.srcpkgs = opts['srcpkgs']
         self.newestonly = opts['newestonly']
+        self.labels = opts['labels']
 
         # root directory for repo and packages
         self.dir = os.path.join(base_dir, self._friendly(self.id))
@@ -124,6 +125,8 @@ class YumRepo(object):
             opts['srcpkgs'] = None
         if 'newestonly' not in opts:
             opts['newestonly'] = None
+        if 'labels' not in opts:
+            opts['labels'] = {}
         return opts
 
     @classmethod
@@ -162,6 +165,10 @@ class YumRepo(object):
         cls._validate_type(opts['version'], 'version', str, None)
         cls._validate_type(opts['srcpkgs'], 'srcpkgs', bool, None)
         cls._validate_type(opts['newestonly'], 'newestonly', bool, None)
+        cls._validate_type(opts['labels'], 'labels', dict)
+        for label, value for opts['labels'].iteritems():
+            cls._validate_type(label, 'label_name_{}'.format(label), str)
+            cls._validate_type(value, 'label_value_{}'.format(label), str)
 
     @staticmethod
     def _sanitize(text):
@@ -470,6 +477,10 @@ class YumRepo(object):
                 self._callback('repo_link_set', 'stable', self.stable)
             elif os.path.lexists(os.path.join(self.dir, 'stable')):
                 os.unlink(os.path.join(self.dir, 'stable'))
+            for label, version in self.labels.iteritems():
+                util.symlink(os.path.join(self.dir, label), version)
+                self._callback('repo_link_set', label, version)
+
         else:
             if os.path.lexists(os.path.join(self.dir, 'latest')):
                 os.unlink(os.path.join(self.dir, 'latest'))
@@ -510,6 +521,8 @@ class YumRepo(object):
             raw_info['srcpkgs'] = self.srcpkgs
         if self.newestonly is not None:
             raw_info['newestonly'] = self.newestonly
+        if self.labels is not []:
+            raw_info['labels'] = str(self.labels)
         friendly_info = ['{}({})'.format(k, raw_info[k]) for k in sorted(raw_info)]
         return '{}: {}'.format(self.id, ', '.join(friendly_info))
 
