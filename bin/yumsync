@@ -142,10 +142,9 @@ def setup_public(repos):
         head, tail = os.path.split(repo.public_dir)
         util.make_dir(repo.dir)
         util.make_dir(head)
-        relative_path = os.path.relpath(repo.dir, head)
         # clean out symbolic_path if incorrect
         if os.path.islink(repo.public_dir):
-            if os.readlink(repo.public_dir) != relative_path:
+            if os.readlink(repo.public_dir) != repo.dir:
                 os.unlink(repo.public_dir)
         elif os.path.isdir(repo.public_dir):
             shutil.rmtree(repo.public_dir)
@@ -153,7 +152,7 @@ def setup_public(repos):
             os.unlink(repo.public_dir)
         # setup symbolic link if missing
         if not os.path.lexists(repo.public_dir):
-            os.symlink(relative_path, repo.public_dir)
+            os.symlink(repo.dir, repo.public_dir)
 
 def stable_links(repos):
     log('setting stable links', header=True)

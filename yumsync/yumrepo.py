@@ -5,6 +5,7 @@ from urlparse import urlparse
 import copy
 import os
 import bisect
+from fnmatch import fnmatch
 import shutil
 import sys
 import tempfile
@@ -316,10 +317,41 @@ class YumRepo(object):
     def _find_rpms(self, local_dir):
         matches = []
         progress_counter = 0
-        for root, dirnames, filenames in os.walk(local_dir, topdown=False):
+        include_globs = []
+        exclude_globs = []
+        if self.__repo_obj.includepkgs is not None:
+            if isinstance(self.__repo_obj.includepkgs, list):
+                include_globs = self.__repo_obj.includepkgs
+            elif isinstance(self.__repo_obj.includepkgs, str):
+                include_globs = [self.__repo_obj.includepkgs]
+        if self.__repo_obj.exclude is not None:
+            if isinstance(self.__repo_obj.exclude, list):
+                exclude_globs = self.__repo_obj.exclude
+            elif isinstance(self.__repo_obj.exclude, str):
+                exclude_globs = [self.__repo_obj.exclude]
+
+        for root, dirnames, filenames in os.walk(local_dir, topdown=False, followlinks=True):
             for filename in filenames:
-                if filename.endswith('.rpm'):
-                    bisect.insort(matches, os.path.relpath(os.path.join(root, filename), local_dir))
+                if not filename.endswith('.rpm'):
+                    continue
+                skip = False
+                keep = True
+                for glob in exclude_globs:
+                    if fnmatch(filename, glob):
+                        skip = True
+                        break
+                if skip:
+                    continue
+                for glob in include_globs:
+                    if fnmatch(filename, glob):
+                        keep = True
+                        break
+                    else:
+                        keep = False
+                if not keep:
+                    continue
+                bisect.insort(matches, os.path.relpath(os.path.join(root, filename), local_dir))
+
         return matches
 
     def _download_local_packages(self):
@@ -329,13 +361,13 @@ class YumRepo(object):
             if isinstance(self.local_dir, str):
                 files = self._find_rpms(self.local_dir)
                 packages = {(None, self.local_dir): self._validate_packages(self.local_dir, files)}
-                nb_packages += len(packages)
+                nb_packages += len(packages[(None, self.local_dir)])
             elif isinstance(self.local_dir, list):
                 packages = {}
                 for idx, local_dir in enumerate(self.local_dir):
                     files = self._find_rpms(local_dir)
                     packages[(idx, local_dir)] = self._validate_packages(local_dir, files)
-                    nb_packages += len(packages)
+                    nb_packages += len(packages[(idx, local_dir)])
 
             self._callback('repo_init', nb_packages, True)
 
@@ -419,7 +451,7 @@ class YumRepo(object):
 
     def prune_packages(self):
         # exit if we don't have packages
-        if not self._packages:
+        if not self._packages or len(self._packages) == 0:
             return
         if self.delete:
             if not self.version or (self.link_type != 'symlink' and self.link_type != 'individual_symlink'):
@@ -433,7 +465,7 @@ class YumRepo(object):
 
     def version_packages(self):
         # exit if we don't have packages
-        if not self._packages:
+        if not self._packages or len(self._packages) == 0:
             return
         if self.version and self.link_type == 'hardlink':
             for pkg in self._packages:
@@ -459,11 +491,6 @@ class YumRepo(object):
     def build_metadata(self):
         staging = tempfile.mkdtemp(prefix='yumsync-', suffix='-metadata')
 
-        if self._packages is None:
-            packages = []
-        else:
-            packages = [os.path.join(os.path.basename(self.package_dir), pkg) for pkg in self._packages]
-
         if self.checksum == 'sha' or self.checksum == 'sha1':
             sumtype = 'sha'
         else:
@@ -473,9 +500,9 @@ class YumRepo(object):
         conf.directory = os.path.dirname(self.package_dir)
         conf.outputdir = staging
         conf.sumtype = sumtype
-        conf.pkglist = packages
         conf.workers = 4
         conf.pkglist = ["packages/{}".format(pkg) for pkg in self._packages]
+
         conf.quiet = True
 
         if self._comps:
@@ -485,9 +512,11 @@ class YumRepo(object):
                 f.write(self._comps)
 
         generator = createrepo.SplitMetaDataGenerator(conf)
-        generator.doPkgMetadata()
-        generator.doRepoMetadata()
-        generator.doFinalMove()
+
+        if conf.pkglist != []:
+            generator.doPkgMetadata()
+            generator.doRepoMetadata()
+            generator.doFinalMove()
 
         if self._comps and os.path.exists(groupdir):
             shutil.rmtree(groupdir)
