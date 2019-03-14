@@ -110,7 +110,7 @@ class YumRepo(object):
             opts['includepkgs'] = None
         if 'link_type' in opts and isinstance(opts['link_type'], str):
             opts['link_type'] = opts['link_type'].lower()
-        if 'link_type' not in opts or (opts['link_type'] != 'symlink' and opts['link_type'] != 'hardlink'):
+        if 'link_type' not in opts or (opts['link_type'] != 'symlink' and opts['link_type'] != 'hardlink' and opts['link_type'] != 'individual_symlink'):
             opts['link_type'] = 'symlink'
         if 'local_dir' not in opts:
             opts['local_dir'] = None
@@ -233,6 +233,21 @@ class YumRepo(object):
                 shutil.rmtree(self.version_package_dir)
             if self.link_type == 'symlink':
                 util.symlink(self.version_package_dir, os.path.relpath(self.package_dir, self.version_dir))
+            elif self.link_type == 'individual_symlink':
+                util.make_dir(self.version_package_dir)
+                if isinstance(self.local_dir, list):
+                    dirs = self.local_dir
+                    single = False
+                elif isinstance(self.local_dir, str):
+                    dirs = [self.local_dir]
+                    single = True
+                for idx, _dir in enumerate(dirs):
+                    pkg_dir = self.version_package_dir
+                    if not single:
+                        pkg_dir = os.path.join(self.version_package_dir, "repo_{}".format(idx))
+                        util.make_dir(os.path.join(pkg_dir))
+                    for _file in self._find_rpms(_dir):
+                        util.symlink(os.path.join(pkg_dir, _file), os.path.join(_dir, _file))
             else: # hardlink
                 util.make_dir(self.version_package_dir)
 
@@ -407,7 +422,7 @@ class YumRepo(object):
         if not self._packages:
             return
         if self.delete:
-            if not self.version or self.link_type != 'symlink':
+            if not self.version or (self.link_type != 'symlink' and self.link_type != 'individual_symlink'):
                 for _file in os.listdir(self.package_dir):
                     if _file not in self._packages:
                         os.unlink(os.path.join(self.package_dir, _file))
