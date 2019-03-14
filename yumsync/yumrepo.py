@@ -4,6 +4,7 @@ from urllib2 import urlopen
 from urlparse import urlparse
 import copy
 import os
+import bisect
 import shutil
 import sys
 import tempfile
@@ -166,7 +167,7 @@ class YumRepo(object):
         cls._validate_type(opts['srcpkgs'], 'srcpkgs', bool, None)
         cls._validate_type(opts['newestonly'], 'newestonly', bool, None)
         cls._validate_type(opts['labels'], 'labels', dict)
-        for label, value for opts['labels'].iteritems():
+        for label, value in opts['labels'].iteritems():
             cls._validate_type(label, 'label_name_{}'.format(label), str)
             cls._validate_type(value, 'label_value_{}'.format(label), str)
 
@@ -297,33 +298,51 @@ class YumRepo(object):
 
         return h
 
+    def _find_rpms(self, local_dir):
+        matches = []
+        progress_counter = 0
+        for root, dirnames, filenames in os.walk(local_dir, topdown=False):
+            for filename in filenames:
+                if filename.endswith('.rpm'):
+                    bisect.insort(matches, os.path.relpath(os.path.join(root, filename), local_dir))
+        return matches
+
     def _download_local_packages(self):
         try:
             packages = {}
+            nb_packages = 0
             if isinstance(self.local_dir, str):
-                packages = {(None, self.local_dir): self._validate_packages(self.local_dir, sorted(os.listdir(self.local_dir)))}
+                files = self._find_rpms(self.local_dir)
+                packages = {(None, self.local_dir): self._validate_packages(self.local_dir, files)}
+                nb_packages += len(packages)
             elif isinstance(self.local_dir, list):
                 packages = {}
                 for idx, local_dir in enumerate(self.local_dir):
-                    packages[(idx, local_dir)] = self._validate_packages(local_dir, sorted(os.listdir(local_dir)))
-            self._callback('repo_init', len(packages), True)
+                    files = self._find_rpms(local_dir)
+                    packages[(idx, local_dir)] = self._validate_packages(local_dir, files)
+                    nb_packages += len(packages)
 
-            for _dir, _file in packages.iteritems():
-                if self.link_type == 'hardlink':
+            self._callback('repo_init', nb_packages, True)
+
+            for _dir, _files in packages.iteritems():
+                for _file in _files:
                     if _dir[0] is not None and isinstance(_dir[0], int):
                         package_dir = os.path.join(self.package_dir, "repo_{}".format(_dir[0]))
+                        file_path = os.path.join("repo_{}".format(_dir[0]), _file)
                     else:
                         package_dir = self.package_dir
-                    status = util.hardlink(os.path.join(_dir[1], _file), os.path.join(package_dir, _file))
-                    if status:
-                        size = os.path.getsize(os.path.join(_dir[1], _file))
-                        self._callback('link_local_pkg', _file, size)
+                        file_path = _file
+                    self._packages.append(file_path)
+                    if self.link_type == 'hardlink':
+                        status = util.hardlink(os.path.join(_dir[1], _file), os.path.join(package_dir, _file))
+                        if status:
+                            size = os.path.getsize(os.path.join(_dir[1], _file))
+                            self._callback('link_local_pkg', _file, size)
+                        else:
+                            self._callback('pkg_exists', _file)
                     else:
                         self._callback('pkg_exists', _file)
-                else:
-                    self._callback('pkg_exists', _file)
 
-            self._packages = packages
             self._callback('repo_complete')
         except (KeyboardInterrupt, SystemExit):
             pass
@@ -440,6 +459,8 @@ class YumRepo(object):
         conf.outputdir = staging
         conf.sumtype = sumtype
         conf.pkglist = packages
+        conf.workers = 4
+        conf.pkglist = ["packages/{}".format(pkg) for pkg in self._packages]
         conf.quiet = True
 
         if self._comps:
@@ -458,11 +479,20 @@ class YumRepo(object):
 
         return staging
 
+    def build_file_list(self):
+        if os.path.exists(os.path.join(self.log_dir, 'filelist')):
+            os.unlink(os.path.join(self.log_dir, 'filelist'))
+        with open(os.path.join(self.log_dir, 'filelist'), 'w') as f:
+            for pkg in self._packages:
+                f.write('packages/{}\n'.format(pkg))
+
+
     def prepare_metadata(self):
         self.get_group_data()
         self._callback('repo_metadata', 'building')
 
         try:
+            self.build_file_list()
             staging = self.build_metadata()
         except Exception as e:
             self._callback('repo_error', str(e))
