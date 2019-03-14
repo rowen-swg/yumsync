@@ -157,7 +157,7 @@ class YumRepo(object):
             for i in opts['includepkgs']:
                 cls._validate_type(i, 'includepkgs (in list)', str)
         cls._validate_type(opts['link_type'], 'link_type', str)
-        cls._validate_type(opts['local_dir'], 'local_dir', str, None)
+        cls._validate_type(opts['local_dir'], 'local_dir', str, list, None)
         cls._validate_type(opts['mirrorlist'], 'mirrorlist', str, None)
         if opts['mirrorlist'] is not None:
             cls._validate_url(opts['mirrorlist'])
@@ -212,7 +212,14 @@ class YumRepo(object):
         if self.local_dir and self.link_type == 'symlink':
             if not os.path.islink(self.package_dir) and os.path.isdir(self.package_dir):
                 shutil.rmtree(self.package_dir)
-            util.symlink(self.package_dir, self.local_dir)
+
+            assert isinstance(self.local_dir, (list, str))
+            if isinstance(self.local_dir, list):
+                for idx, local_dir in enumerate(self.local_dir):
+                    subdir = os.path.join(self.package_dir, "repo_{}".format(idx))
+                    util.symlink(subdir, local_dir)
+            elif isinstance(self.local_dir, str):
+                util.symlink(self.package_dir, self.local_dir)
         else:
             if os.path.islink(self.package_dir):
                 os.unlink(self.package_dir)
@@ -292,14 +299,24 @@ class YumRepo(object):
 
     def _download_local_packages(self):
         try:
-            packages = self._validate_packages(self.local_dir, sorted(os.listdir(self.local_dir)))
+            packages = {}
+            if isinstance(self.local_dir, str):
+                packages = {(None, self.local_dir): self._validate_packages(self.local_dir, sorted(os.listdir(self.local_dir)))}
+            elif isinstance(self.local_dir, list):
+                packages = {}
+                for idx, local_dir in enumerate(self.local_dir):
+                    packages[(idx, local_dir)] = self._validate_packages(local_dir, sorted(os.listdir(local_dir)))
             self._callback('repo_init', len(packages), True)
 
-            for _file in packages:
+            for _dir, _file in packages.iteritems():
                 if self.link_type == 'hardlink':
-                    status = util.hardlink(os.path.join(self.local_dir, _file), os.path.join(self.package_dir, _file))
+                    if _dir[0] is not None and isinstance(_dir[0], int):
+                        package_dir = os.path.join(self.package_dir, "repo_{}".format(_dir[0]))
+                    else:
+                        package_dir = self.package_dir
+                    status = util.hardlink(os.path.join(_dir[1], _file), os.path.join(package_dir, _file))
                     if status:
-                        size = os.path.getsize(os.path.join(self.local_dir, _file))
+                        size = os.path.getsize(os.path.join(_dir[1], _file))
                         self._callback('link_local_pkg', _file, size)
                     else:
                         self._callback('pkg_exists', _file)
@@ -512,7 +529,7 @@ class YumRepo(object):
         if self.link_type:
             raw_info['link_type'] = self.link_type
         if self.local_dir:
-            raw_info['local_dir'] = self.local_dir
+            raw_info['local_dir'] = str(self.local_dir)
         if self.stable:
             raw_info['stable'] = self.stable
         if self.version:
