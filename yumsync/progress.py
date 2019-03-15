@@ -52,7 +52,9 @@ class Progress(object):
             self.totals['md_total'] += 1
         if set_total:
             self.repos[repo_id]['numpkgs'] = set_total
-            self.totals['numpkgs'] += set_total
+            self.totals['numpkgs'] = 0
+            for _, repo in self.repos.iteritems():
+                self.totals['numpkgs'] += repo['numpkgs']
         if pkgs_downloaded:
             self.repos[repo_id]['dlpkgs'] += pkgs_downloaded
             self.totals['dlpkgs'] += pkgs_downloaded
@@ -79,9 +81,11 @@ class Progress(object):
     @classmethod
     def pct(cls, current, total):
         """ Calculate a percentage. """
+        if total == 0:
+            return "0"
         val = current / float(total) * 100
         formatted = '{:0.1f}%'.format(val)
-        return formatted if int(val) < 100 else 'complete'
+        return formatted
 
     def elapsed(self):
         """ Calculate and return elapsed time.
@@ -134,8 +138,6 @@ class Progress(object):
         """
         if numpkgs == 0:
             return '{:^{}s}'.format('-', a + b + 1)
-        elif dlpkgs >= numpkgs:
-            return '{:>{}}'.format(dlpkgs, a + b + 1)
         else:
             return '{0:>{2}}/{1:<{3}}'.format(dlpkgs, numpkgs, a, b)
 
@@ -266,7 +268,7 @@ class Progress(object):
             else:
                 other_repos.append(repo_id)
 
-        for repo_id in itertools.chain(error_repos, complete_repos, metadata_repos, other_repos):
+        for repo_id in sorted(self.repos):
             self.emit(self.represent_repo(repo_id, h1, h2, h3, h4, h5))
 
         self.emit('-' * len(header))
