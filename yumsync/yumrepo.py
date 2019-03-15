@@ -288,16 +288,17 @@ class YumRepo(object):
         else:
             self._download_remote_packages()
 
-    @classmethod
-    def _validate_packages(cls, directory, packages):
+    def _validate_packages(self, directory, packages):
         ts = yum.rpmUtils.transaction.initReadOnlyTransaction()
         if isinstance(packages, str):
-            return cls._validate_package(ts, directory, packages)
+            self._callback('pkg_exists', packages)
+            return self._validate_package(ts, directory, packages)
         elif isinstance(packages, list):
             valid = []
             for pkg in packages:
-                if cls._validate_package(ts, directory, pkg):
+                if self._validate_package(ts, directory, pkg):
                     valid.append(pkg)
+                    self._callback('pkg_exists', pkg)
             return valid
         else:
             return None
@@ -311,7 +312,6 @@ class YumRepo(object):
             h = yum.rpmUtils.miscutils.hdrFromPackage(ts, pkg_path)
         except yum.rpmUtils.RpmUtilsError:
             pass
-
         return h
 
     def _find_rpms(self, local_dir):
@@ -358,6 +358,7 @@ class YumRepo(object):
         try:
             packages = {}
             nb_packages = 0
+            self._callback('repo_init', nb_packages, True)
             if isinstance(self.local_dir, str):
                 files = self._find_rpms(self.local_dir)
                 packages = {(None, self.local_dir): self._validate_packages(self.local_dir, files)}
@@ -366,10 +367,11 @@ class YumRepo(object):
                 packages = {}
                 for idx, local_dir in enumerate(self.local_dir):
                     files = self._find_rpms(local_dir)
+                    nb_packages += len(files)
+                    self._callback('repo_init', nb_packages, True)
                     packages[(idx, local_dir)] = self._validate_packages(local_dir, files)
-                    nb_packages += len(packages[(idx, local_dir)])
-
             self._callback('repo_init', nb_packages, True)
+
 
             for _dir, _files in packages.iteritems():
                 for _file in _files:
@@ -385,10 +387,6 @@ class YumRepo(object):
                         if status:
                             size = os.path.getsize(os.path.join(_dir[1], _file))
                             self._callback('link_local_pkg', _file, size)
-                        else:
-                            self._callback('pkg_exists', _file)
-                    else:
-                        self._callback('pkg_exists', _file)
 
             self._callback('repo_complete')
         except (KeyboardInterrupt, SystemExit):
