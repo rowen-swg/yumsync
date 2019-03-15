@@ -6,8 +6,27 @@ import urlparse
 from yumsync import util, progress
 from yumsync.log import log
 from yumsync.metadata import __version__
+import copy_reg, types
 
-def sync(repos=None, callback=None):
+def pickle_method(method):
+    func_name = method.im_func.__name__
+    obj = method.im_self
+    cls = method.im_class
+    return unpickle_method, (func_name, obj, cls)
+
+def unpickle_method(func_name, obj, cls):
+    for cls in cls.mro():
+        try:
+            func = cls.__dict__[func_name]
+        except KeyError:
+            pass
+        else:
+            break
+    return func.__get__(obj, cls)
+
+copy_reg.pickle(types.MethodType, pickle_method, unpickle_method)
+
+def sync(repos=None, callback=None, processes=None, workers=1):
     """ Mirror repositories with configuration data from multiple sources.
 
     Handles all input validation and higher-level logic before passing control
@@ -21,7 +40,8 @@ def sync(repos=None, callback=None):
     prog = progress.Progress()  # callbacks talk to this object
     manager = multiprocessing.Manager()
     queue = manager.Queue()
-    processes = []
+    pool = multiprocessing.Pool(processes=processes)
+    process_results = []
 
     def signal_handler(_signum, _frame):
         """ Inner method for terminating threads on signal events.
@@ -31,11 +51,7 @@ def sync(repos=None, callback=None):
         take a long time to complete.
         """
         log('Caught exit signal - aborting')
-        while len(processes) > 0:
-            for proc in processes:
-                os.kill(proc.pid, signal.SIGKILL)
-                if not proc.is_alive():
-                    processes.remove(proc)
+        pool.terminate()
         sys.exit(1) # safe to do exit() here because we are a worker
 
     # Catch user-cancelled or killed signals to terminate threads.
@@ -50,11 +66,9 @@ def sync(repos=None, callback=None):
         repo.set_yum_callback(yumcallback)
         repo.set_repo_callback(repocallback)
 
-        proc = multiprocessing.Process(target=repo.sync)
-        processes.append(proc)
-        proc.start()
+        process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers}))
 
-    while len(processes) > 0:
+    while len(process_results) > 0:
         # If data is waiting in the queue from the workers, process it. This
         # needs to be done in the current scope so that one progress object may
         # hold all of the results. (This might be easier with Python 3's
@@ -81,9 +95,9 @@ def sync(repos=None, callback=None):
                 pass
             elif event['action'] == 'repo_group_data':
                 pass
-        for proc in processes:
-            if not proc.is_alive():
-                processes.remove(proc)
+        for proc in process_results:
+            if proc.ready():
+                process_results.remove(proc)
 
     # Return tuple (#repos, #fail, elapsed time)
     return (len(repos), prog.totals['errors'], prog.elapsed())

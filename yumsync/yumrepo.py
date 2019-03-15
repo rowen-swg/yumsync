@@ -498,7 +498,7 @@ class YumRepo(object):
         conf.directory = os.path.dirname(self.package_dir)
         conf.outputdir = staging
         conf.sumtype = sumtype
-        conf.workers = 4
+        conf.workers = self._workers
         conf.pkglist = ["packages/{}".format(pkg) for pkg in self._packages]
 
         conf.quiet = True
@@ -576,7 +576,8 @@ class YumRepo(object):
             if os.path.lexists(os.path.join(self.dir, 'stable')):
                 os.unlink(os.path.join(self.dir, 'stable'))
 
-    def sync(self):
+    def sync(self, workers=1):
+        self._workers = workers
         try:
             self.setup_directories()
             self.download_gpgkey()
