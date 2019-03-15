@@ -4,6 +4,7 @@ import argparse
 import os
 import re
 import yumsync
+from multiprocessing import cpu_count
 import shutil
 import sys
 import time
@@ -177,7 +178,7 @@ def handle_repos(repos):
 
     mycallback_instance = mycallback(log_dirs)
 
-    return yumsync.sync(repos, mycallback_instance)
+    return yumsync.sync(repos, mycallback_instance, processes=PROCESSES, workers=WORKERS)
 
 def print_summary(repos, errors, elapsed):
     repo_str = 'repository' if repos == 1 else 'repositories'
@@ -237,6 +238,10 @@ if __name__ == '__main__':
         help='Show version')
     parser.add_argument('--stable', action='store_true', default=False,
         help='Only set stable links for YUM repositories')
+    parser.add_argument('-w', '--worker', action='store', default=int(4),
+        help='Number of create repo workers')
+    parser.add_argument('-p', '--process', action='store', default=int(cpu_count()/4),
+        help='Number of repo to process in parallel')
     args = parser.parse_args()
     REPOFILE     = args.config
     OUTDIR       = args.directory
@@ -245,4 +250,6 @@ if __name__ == '__main__':
     SHOWVERSION  = args.version
     STABLEONLY   = args.stable
     PUBLICDIR    = os.path.join(OUTDIR, 'public')
+    PROCESSES    = int(args.process)
+    WORKERS      = int(args.worker)
     main()
