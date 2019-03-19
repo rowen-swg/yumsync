@@ -226,9 +226,9 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Sync YUM repositories with optional versioned snapshots.')
-    parser.add_argument('-o', '--directory', action='store', default=os.getcwd(),
+    parser.add_argument('-o', '--directory', action='store', default='/var/lib/yumsync/',
         help='Path to output directory to store repositories, defaults to current directory')
-    parser.add_argument('-c', '--config', action='store', default=os.path.join(os.getcwd(), 'repos.yml'),
+    parser.add_argument('-c', '--config', action='store', default=os.path.join('/etc/yumsync/config.yaml'),
         help='Path to YAML config file describing repositories, defaults to repos.yml in current directory')
     parser.add_argument('-n', '--name', action='append', required=False,
         help='Name of YUM repository (repeatable) from config file to sync instead of all available')
