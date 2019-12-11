@@ -170,6 +170,16 @@ def stable_links(repos):
                 os.unlink(os.path.join(repo.dir, 'latest'))
             if os.path.lexists(os.path.join(repo.dir, 'stable')):
                 os.unlink(os.path.join(repo.dir, 'stable'))
+        for label, version in repo.labels.iteritems():
+            util.symlink(os.path.join(repo.dir, label), version)
+            log('{}: label set to {}'.format(label, version))
+
+def labels_links(repos):
+    log('setting labels links', header=True)
+    for repo in repos:
+        for label, version in repo.labels.iteritems():
+            util.symlink(os.path.join(repo.dir, label), version)
+            log('{}: label set to {}'.format(label, version)))
 
 def handle_repos(repos):
     log_dirs = {}
@@ -214,13 +224,18 @@ def main():
 
     if STABLEONLY == True:
         stable_links(repos)
-        sys.exit(0)
+
+    if LABELSONLY == True:
+        labels_links(repos)
 
     if RELOCATE == True:
         setup_public(repos)
         stable_links(repos)
+        labels_links(repos)
         for repo in repos:
             repo.setup_directories()
+
+    if STABLEONLY == True or LABELSONLY == True or RELOCATE == True:
         sys.exit(0)
 
     log('syncing repositories', header=True)
@@ -245,6 +260,8 @@ if __name__ == '__main__':
         help='Show version')
     parser.add_argument('--stable', action='store_true', default=False,
         help='Only set stable links for YUM repositories')
+    parser.add_argument('--labels', action='store_true', default=False,
+        help='Only set labels links for YUM repositories')
     parser.add_argument('-w', '--worker', action='store', default=int(4),
         help='Number of create repo workers')
     parser.add_argument('-p', '--process', action='store', default=int(cpu_count()/4),
@@ -258,6 +275,7 @@ if __name__ == '__main__':
     SHOWONLY     = args.show
     SHOWVERSION  = args.version
     STABLEONLY   = args.stable
+    LABELSONLY   = args.labels
     PUBLICDIR    = os.path.join(OUTDIR, 'public')
     PROCESSES    = int(args.process)
     WORKERS      = int(args.worker)
