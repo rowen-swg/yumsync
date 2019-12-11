@@ -179,7 +179,7 @@ def labels_links(repos):
     for repo in repos:
         for label, version in repo.labels.iteritems():
             util.symlink(os.path.join(repo.dir, label), version)
-            log('{}: label set to {}'.format(label, version)))
+            log('{}: label set to {}'.format(label, version))
 
 def handle_repos(repos):
     log_dirs = {}
