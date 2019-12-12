@@ -16,6 +16,7 @@ import yum
 # local imports
 from yumsync.yumbase import YumBase
 import yumsync.util as util
+import logging
 
 class MetadataBuildError(Exception):
     def __init__(self, *args, **kwargs):
@@ -617,6 +618,7 @@ class YumRepo(object):
         return '{}: {}'.format(self.id, ', '.join(friendly_info))
 
     def _callback(self, event, *args):
+        logging.debug("{}: Send event {} with args {}".format(type(self), event, args))
         if self.__repo_callback_obj and hasattr(self.__repo_callback_obj, event):
             method = getattr(self.__repo_callback_obj, event)
             method(self.id, *args)

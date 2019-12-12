@@ -7,6 +7,7 @@ from yumsync import util, progress
 from yumsync.log import log
 from yumsync.metadata import __version__
 import copy_reg, types
+import logging
 
 def pickle_method(method):
     func_name = method.im_func.__name__
@@ -58,7 +59,11 @@ def sync(repos=None, callback=None, processes=None, workers=1):
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    def err_callback(exc):
+        logging.exception("A process ended with error")
+
     for repo in repos:
+        logging.debug("Setup callback and async job for repo {}".format(repo.id))
         prog.update(repo.id) # Add the repo to the progress object
         yumcallback = progress.YumProgress(repo.id, queue, callback)
         repocallback = progress.ProgressCallback(queue, callback)
@@ -66,7 +71,7 @@ def sync(repos=None, callback=None, processes=None, workers=1):
         repo.set_yum_callback(yumcallback)
         repo.set_repo_callback(repocallback)
 
-        process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers}))
+        process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers}, error_callback=err_callback))
 
     while len(process_results) > 0:
         # If data is waiting in the queue from the workers, process it. This
@@ -75,6 +80,7 @@ def sync(repos=None, callback=None, processes=None, workers=1):
         # nonlocal keyword).
         while not queue.empty():
             event = queue.get()
+            logging.info("Process queue event {}".format(event))
             if not 'action' in event:
                 continue
             if event['action'] == 'repo_init' and 'data' in event:
@@ -97,7 +103,12 @@ def sync(repos=None, callback=None, processes=None, workers=1):
                 pass
         for proc in process_results:
             if proc.ready():
+                if proc.successful():
+                    logging.info("A Process ended, removing from waiting list")
+                else:
+                    logging.info("A Process ended with error, removing from waiting list")
                 process_results.remove(proc)
+
 
     # Return tuple (#repos, #fail, elapsed time)
     return (len(repos), prog.totals['errors'], prog.elapsed())

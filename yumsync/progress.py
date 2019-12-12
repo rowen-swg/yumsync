@@ -2,6 +2,7 @@ import sys
 import datetime
 import itertools
 from blessings import Terminal
+import logging
 
 class Progress(object):
     """ Handle progress indication using callbacks.
@@ -308,6 +309,7 @@ class YumProgress(object):
         on the callback object before trying to invoke it, making all methods
         optional.
         """
+        logging.debug('{}: Got callback {}({})'.format(type(self), method, args))
         if self.usercallback and hasattr(self.usercallback, method):
             method = getattr(self.usercallback, method)
             try:
@@ -361,6 +363,7 @@ class ProgressCallback(object):
 
     def callback(self, repo_id, event, *args):
         """ Abstracts calling the user callback. """
+        logging.debug('{}: Got event for repo {}: {}'.format(type(self), repo_id, event))
         if self.usercallback and hasattr(self.usercallback, event):
             method = getattr(self.usercallback, event)
             try:
