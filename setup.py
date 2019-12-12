@@ -15,6 +15,6 @@ setup(
     url='https://github.com/jrwesolo/yumsync',
     packages=['yumsync'],
     scripts=['bin/yumsync'],
-    install_requires=['blessings', 'PyYAML', 'six'],
+    install_requires=['blessings', 'PyYAML', 'six', 'libdnf', 'createrepo_c', 'rpm'],
     zip_safe=False
 )
