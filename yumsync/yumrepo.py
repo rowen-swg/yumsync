@@ -30,6 +30,8 @@ import logging
 
 from yumsync import progress
 
+from threading import Lock
+
 class MetadataBuildError(Exception):
     def __init__(self, *args, **kwargs):
         Exception.__init__(self, *args, **kwargs)
@@ -512,19 +514,49 @@ class YumRepo(object):
         fil_xml.set_num_of_pkgs(len(pkg_list))
         oth_xml.set_num_of_pkgs(len(pkg_list))
 
-        # Process all packages
-        total = len(pkg_list)
-        for idx, filename in enumerate(pkg_list):
-            self._callback('repo_metadata', int((idx+1)*100//total))
+        # Process all packages in // if possible
+        self.metadata_progress = 0
+        self.total_pkgs = len(pkg_list)
+        metadata_mutex = Lock()
 
+        def collect_result(future):
+            self.metadata_progress += 1
+            self._callback('repo_metadata', int((self.metadata_progress+1)*100//self.total_pkgs))
+
+        def process_pkg(filename):
             pkg = createrepo.package_from_rpm(filename)
             pkg.location_href = os.path.basename(filename)
-            pri_xml.add_pkg(pkg)
-            fil_xml.add_pkg(pkg)
-            oth_xml.add_pkg(pkg)
-            pri_db.add_pkg(pkg)
-            fil_db.add_pkg(pkg)
-            oth_db.add_pkg(pkg)
+            return pkg
+
+        try:
+            from concurrent.futures import ThreadPoolExecutor
+            parallelize = True
+        except:
+            parallelize = False
+
+        if parallelize:
+            with ThreadPoolExecutor(max_workers=self._workers) as executor:
+                futures = []
+                for filename in pkg_list:
+                    future = executor.submit(process_pkg, filename)
+                    future.add_done_callback(collect_result)
+                    futures.append(future)
+                for future in futures:
+                    try:
+                        pkg = future.result(10)
+                    except Exception as exc:
+                        logging.exception("Thread generated an exception")
+                    else:
+                        pri_xml.add_pkg(pkg)
+                        fil_xml.add_pkg(pkg)
+                        oth_xml.add_pkg(pkg)
+                        pri_db.add_pkg(pkg)
+                        fil_db.add_pkg(pkg)
+                        oth_db.add_pkg(pkg)
+        else:
+            for idx, filename in enumerate(pkg_list):
+                process_pkg(filename)
+                collect_result(None)
 
         pri_xml.close()
         fil_xml.close()
