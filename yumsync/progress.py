@@ -4,6 +4,7 @@ import itertools
 from blessings import Terminal
 import logging
 import six
+import dnf
 
 class Progress(object):
     """ Handle progress indication using callbacks.
@@ -201,7 +202,11 @@ class Progress(object):
             metadata = self.represent_repomd(repo_id, h5)
             if percent == 'complete':
                 percent = self.color(percent, 'green')
-            if metadata == 'building':
+            if metadata == 'building' or ((isinstance(metadata, int) or metadata.isdigit()) and int(metadata) < 100):
+                if isinstance(metadata, str) and metadata.isdigit():
+                    metadata += "%"
+                if isinstance(metadata, int):
+                    metadata = "{}%".format(metadata)
                 metadata = self.color(metadata, 'yellow')
             elif metadata == 'complete':
                 metadata = self.color(metadata, 'green')
@@ -429,3 +434,18 @@ class ProgressCallback(object):
     def link_local_pkg(self, repo_id, pkgname, size):
         """ Called when a package is linked from a local repository """
         self.send(repo_id, 'link_local_pkg', pkgname, size)
+
+class DownloadProgress(dnf.callback.DownloadProgress):
+    def __init__(self, callback):
+        self.callback = callback
+
+    def start(self, total_files, total_size, total_drpms=0):
+        self.callback('repo_init', total_files)
+
+    def progress(self, payload, done):
+        pass
+
+    def end(self, payload, status, msg):
+        file_name = payload.__str__()
+        if status == dnf.callback.STATUS_OK:
+            self.callback('pkg_exists', file_name)

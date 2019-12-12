@@ -22,13 +22,13 @@ import sys
 import tempfile
 import time
 # third-party imports
-import createrepo
-import yum
-# local imports
-from yumsync.yumbase import YumBase
+import createrepo_c as createrepo
+import dnf, rpm
 import six
 import yumsync.util as util
 import logging
+
+from yumsync import progress
 
 class MetadataBuildError(Exception):
     def __init__(self, *args, **kwargs):
@@ -48,10 +48,6 @@ class YumRepo(object):
         self._validate_opts(opts)
         self._validate_type(base_dir, 'base_dir', str)
 
-        # set actual repo object
-        self.__repo_obj = self._get_repo_obj(repoid, opts['local_dir'], opts['baseurl'], opts['mirrorlist'])
-        self.__repo_obj.includepkgs = opts['includepkgs']
-        self.__repo_obj.exclude = opts['excludepkgs']
         self.id = repoid
         self.checksum = opts['checksum']
         self.combine = opts['combined_metadata'] if opts['version'] else None
@@ -59,6 +55,10 @@ class YumRepo(object):
         self.gpgkey = opts['gpgkey']
         self.link_type = opts['link_type']
         self.local_dir = opts['local_dir']
+        self.baseurl = opts['baseurl']
+        self.mirrorlist = opts['mirrorlist']
+        self.incl_pkgs = opts['includepkgs']
+        self.excl_pkgs = opts['excludepkgs']
         self.stable = opts['stable']
         self.version = time.strftime(opts['version']) if opts['version'] else None
         self.srcpkgs = opts['srcpkgs']
@@ -83,6 +83,12 @@ class YumRepo(object):
         # set repo placeholders
         self._packages = []
         self._comps = None
+
+    def setup(self):
+        # set actual repo object
+        self.__repo_obj = self._get_repo_obj(self.id, self.local_dir, self.baseurl, self.mirrorlist)
+        self.__repo_obj.includepkgs = self.incl_pkgs
+        self.__repo_obj.exclude = self.excl_pkgs
 
     @staticmethod
     def _validate_type(obj, obj_name, *obj_types):
@@ -145,12 +151,8 @@ class YumRepo(object):
 
     @classmethod
     def _validate_opts(cls, opts):
-        cls._validate_type(opts['baseurl'], 'baseurl', str, list, None)
-        if isinstance(opts['baseurl'], list):
-            for b in opts['baseurl']:
-                cls._validate_type(b, 'baseurl (in list)', str)
-                cls._validate_url(b)
-        elif isinstance(opts['baseurl'], str):
+        cls._validate_type(opts['baseurl'], 'baseurl', str, None)
+        if isinstance(opts['baseurl'], str):
             cls._validate_url(opts['baseurl'])
         cls._validate_type(opts['checksum'], 'checksum', str, None)
         cls._validate_type(opts['combined_metadata'], 'combined_metadata', bool, None)
@@ -194,18 +196,18 @@ class YumRepo(object):
 
     @staticmethod
     def _get_repo_obj(repoid, localdir=None, baseurl=None, mirrorlist=None):
-        yb = YumBase()
+        repo = dnf.repo.Repo(repoid, dnf.Base().conf)
+        repo.baseurl = None
+        repo.metalink = None
+        repo.mirrorlist = None
+
         if baseurl is not None:
-            if isinstance(baseurl, list):
-                repo = yb.add_enable_repo(repoid, baseurls=baseurl)
-            else:
-                repo = yb.add_enable_repo(repoid, baseurls=[baseurl])
+            repo.baseurl = baseurl
         elif mirrorlist is not None:
-            repo = yb.add_enable_repo(repoid, mirrorlist=mirrorlist)
-        elif localdir:
-            repo = yb.add_enable_repo(repoid)
-        else:
-            raise ValueError('One or more baseurls or mirrorlist required')
+            repo.mirrorlist = mirrorlist
+        elif (localdir, baseurl, mirrorlist) is (None, None, None):
+            raise ValueError('One or more baseurls, mirrorlist or localdir required')
+        repo.enable()
         return repo
 
     def set_repo_callback(self, callback):
@@ -218,7 +220,7 @@ class YumRepo(object):
         repo = copy.copy(self.__repo_obj)
         try:
             repo.pkgdir = path
-        except yum.Errors.RepoError:
+        except dnf.RepoError:
             pass
         return repo
 
@@ -301,7 +303,7 @@ class YumRepo(object):
             self._download_remote_packages()
 
     def _validate_packages(self, directory, packages):
-        ts = yum.rpmUtils.transaction.initReadOnlyTransaction()
+        ts = rpm.TransactionSet()
         if isinstance(packages, str):
             self._callback('pkg_exists', packages)
             return self._validate_package(ts, directory, packages)
@@ -317,14 +319,12 @@ class YumRepo(object):
 
     @staticmethod
     def _validate_package(ts, directory, package):
-        h = None
-
         try:
             pkg_path = os.path.join(directory, package)
-            h = yum.rpmUtils.miscutils.hdrFromPackage(ts, pkg_path)
-        except yum.rpmUtils.RpmUtilsError:
-            pass
-        return h
+            with open(pkg_path, 'rb') as pkg:
+                return ts.hdrFromFdno(pkg)
+        except:
+            return None
 
     def _find_rpms(self, local_dir):
         matches = []
@@ -408,50 +408,29 @@ class YumRepo(object):
             raise PackageDownloadError(str(e))
 
     def _download_remote_packages(self):
-        @contextmanager
-        def suppress():
-            """ Suppress stdout within a context.
-
-            This is necessary in this use case because, unfortunately, the YUM
-            library will do direct printing to stdout in many error conditions.
-            Since we are maintaining a real-time, in-place updating presentation
-            of progress, we must suppress this, as we receive exceptions for our
-            reporting purposes anyways.
-            """
-            stdout = sys.stdout
-            sys.stdout = open(os.devnull, 'w')
-            yield
-            sys.stdout = stdout
-
         try:
-            yb = YumBase()
-            if self.srcpkgs:
-                if not 'src' in yb.arch.archlist:
-                    yb.arch.archlist.append('src')
+            yb = dnf.Base()
+            yb.conf.cachedir = tempfile.mkdtemp(prefix='yumsync-', suffix='-dnf')
+            yb.conf.debuglevel = 0
+            yb.conf.errorlevel = 3
             repo = self._set_path(self.package_dir)
-            if self.__yum_callback_obj:
-                repo.setCallback(self.__yum_callback_obj)
             yb.repos.add(repo)
-            yb.repos.enableRepo(repo.id)
-            with suppress():
-                if self.newestonly:
-                  packages = yb.pkgSack.returnNewestByNameArch()
-                else:
-                  packages = yb.pkgSack.returnPackages()
+            yb.fill_sack()
+            p_query = yb.sack.query().available()
+            if self.newestonly:
+                p_query = repo_query.latest(limit=1)
+            packages = list(p_query)
             # Inform about number of packages total in the repo.
-            self._callback('repo_init', len(packages))
             # Check if the packages are already downloaded. This is probably a bit
             # expensive, but the alternative is simply not knowing, which is
             # horrible for progress indication.
-            for po in packages:
-                local = po.localPkg()
-                self._packages.append(os.path.basename(local))
-                if os.path.exists(local):
-                    if yb.verifyPkg(local, po, False):
+            if packages:
+                for po in packages:
+                    local = po.localPkg()
+                    self._packages.append(os.path.basename(local))
+                    if os.path.exists(local):
                         self._callback('pkg_exists', os.path.basename(local))
-            with suppress():
-                yb.downloadPkgs(packages)
-
+                yb.download_packages(packages, progress=progress.DownloadProgress(self._callback))
             self._callback('repo_complete')
         except (KeyboardInterrupt, SystemExit):
             pass
@@ -488,10 +467,11 @@ class YumRepo(object):
             self._comps = None
         else:
             try:
-                yb = YumBase()
+                yb = dnf.Base()
                 yb.repos.add(self.__repo_obj)
-                self._comps = yb._getGroups().xml()
-            except yum.Errors.GroupsError:
+                yb.read_comps(arch_filter=False)
+                self._comps = yb.comps
+            except dnf.exceptions.CompsError:
                 pass
         if self._comps:
             self._callback('repo_group_data', 'available')
@@ -506,27 +486,79 @@ class YumRepo(object):
         else:
             sumtype = 'sha256'
 
-        conf = createrepo.MetaDataConfig()
-        conf.directory = os.path.dirname(self.package_dir)
-        conf.outputdir = staging
-        conf.sumtype = sumtype
-        conf.workers = self._workers
-        conf.pkglist = ["packages/{}".format(pkg) for pkg in self._packages]
+        repodata_path = os.path.join(staging, 'repodata')
+        os.mkdir(repodata_path)
 
-        conf.quiet = True
+        # Prepare metadata files
+        repomd_path  = os.path.join(repodata_path, "repomd.xml")
+        pri_xml_path = os.path.join(repodata_path, "primary.xml.gz")
+        fil_xml_path = os.path.join(repodata_path, "filelists.xml.gz")
+        oth_xml_path = os.path.join(repodata_path, "other.xml.gz")
+        pri_db_path  = os.path.join(repodata_path, "primary.sqlite")
+        fil_db_path  = os.path.join(repodata_path, "filelists.sqlite")
+        oth_db_path  = os.path.join(repodata_path, "other.sqlite")
+
+        # Related python objects
+        pri_xml = createrepo.PrimaryXmlFile(pri_xml_path)
+        fil_xml = createrepo.FilelistsXmlFile(fil_xml_path)
+        oth_xml = createrepo.OtherXmlFile(oth_xml_path)
+        pri_db  = createrepo.PrimarySqlite(pri_db_path)
+        fil_db  = createrepo.FilelistsSqlite(fil_db_path)
+        oth_db  = createrepo.OtherSqlite(oth_db_path)
+
+        # Set package list
+        pkg_list = [os.path.join(self.package_dir,"{}".format(pkg)) for pkg in self._packages]
+        pri_xml.set_num_of_pkgs(len(pkg_list))
+        fil_xml.set_num_of_pkgs(len(pkg_list))
+        oth_xml.set_num_of_pkgs(len(pkg_list))
+
+        # Process all packages
+        total = len(pkg_list)
+        for idx, filename in enumerate(pkg_list):
+            self._callback('repo_metadata', int((idx+1)*100//total))
+
+            pkg = createrepo.package_from_rpm(filename)
+            pkg.location_href = os.path.basename(filename)
+            pri_xml.add_pkg(pkg)
+            fil_xml.add_pkg(pkg)
+            oth_xml.add_pkg(pkg)
+            pri_db.add_pkg(pkg)
+            fil_db.add_pkg(pkg)
+            oth_db.add_pkg(pkg)
+
+        pri_xml.close()
+        fil_xml.close()
+        oth_xml.close()
+
+        # Note: DBs are still open! We have to calculate checksums of xml files
+        # and insert them to the databases first!
+
+        self._callback('repo_metadata', 'building')
+        # Prepare repomd.xml
+        repomd = createrepo.Repomd()
+
+        repomdrecords = (("primary",      pri_xml_path, pri_db),
+                         ("filelists",    fil_xml_path, fil_db),
+                         ("other",        oth_xml_path, oth_db),
+                         ("primary_db",   pri_db_path,  None),
+                         ("filelists_db", fil_db_path,  None),
+                         ("other_db",     oth_db_path,  None))
+
+        for name, path, db_to_update in repomdrecords:
+            record = createrepo.RepomdRecord(name, path)
+            record.fill(createrepo.SHA256)
+            if (db_to_update):
+                db_to_update.dbinfo_update(record.checksum)
+                db_to_update.close()
+            repomd.set_record(record)
+
+        open(repomd_path, "w").write(repomd.xml_dump())
 
         if self._comps:
             groupdir = tempfile.mkdtemp(prefix='yumsync-', suffix='-groupdata')
             conf.groupfile = os.path.join(groupdir, 'groups.xml')
             with open(conf.groupfile, 'w') as f:
                 f.write(self._comps)
-
-        generator = createrepo.SplitMetaDataGenerator(conf)
-
-        if conf.pkglist != []:
-            generator.doPkgMetadata()
-            generator.doRepoMetadata()
-            generator.doFinalMove()
 
         if self._comps and os.path.exists(groupdir):
             shutil.rmtree(groupdir)
@@ -589,6 +621,7 @@ class YumRepo(object):
                 os.unlink(os.path.join(self.dir, 'stable'))
 
     def sync(self, workers=1):
+        self.setup()
         self._workers = workers
         try:
             self.setup_directories()
@@ -597,8 +630,10 @@ class YumRepo(object):
             self.prepare_metadata()
             self.create_links()
         except MetadataBuildError:
+            self._callback('repo_error', 'MetadataBuildError')
             return False
         except PackageDownloadError:
+            self._callback('repo_error', 'PackageDownloadError')
             return False
 
     def __str__(self):
