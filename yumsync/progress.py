@@ -3,6 +3,7 @@ import datetime
 import itertools
 from blessings import Terminal
 import logging
+import six
 
 class Progress(object):
     """ Handle progress indication using callbacks.
@@ -54,7 +55,7 @@ class Progress(object):
         if set_total:
             self.repos[repo_id]['numpkgs'] = set_total
             self.totals['numpkgs'] = 0
-            for _, repo in self.repos.iteritems():
+            for _, repo in six.iteritems(self.repos):
                 self.totals['numpkgs'] += repo['numpkgs']
         if pkgs_downloaded:
             self.repos[repo_id]['dlpkgs'] += pkgs_downloaded

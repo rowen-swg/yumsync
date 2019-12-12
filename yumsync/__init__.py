@@ -2,11 +2,25 @@ import os
 import sys
 import multiprocessing
 import signal
-import urlparse
+
+try:
+    import urlparse
+except (ImportError, ModuleNotFoundError):
+    # Python3
+    from urllib.parse import urlparse
+
 from yumsync import util, progress
 from yumsync.log import log
 from yumsync.metadata import __version__
-import copy_reg, types
+
+try:
+    import copy_reg
+except (ImportError, ModuleNotFoundError):
+    # Python3
+    import copyreg as copy_reg
+
+import types
+
 import logging
 
 def pickle_method(method):

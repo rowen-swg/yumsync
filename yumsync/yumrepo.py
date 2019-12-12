@@ -1,7 +1,18 @@
 # standard imports
 from contextlib import contextmanager
-from urllib2 import urlopen
-from urlparse import urlparse
+
+try:
+    from urllib2 import urlopen
+except ImportError:
+    # Python3
+    from urllib.request import urlopen
+
+try:
+    import urlparse
+except ImportError:
+    # Python3
+    from urllib.parse import urlparse
+
 import copy
 import os
 import bisect
@@ -15,6 +26,7 @@ import createrepo
 import yum
 # local imports
 from yumsync.yumbase import YumBase
+import six
 import yumsync.util as util
 import logging
 
@@ -81,7 +93,6 @@ class YumRepo(object):
             raise ValueError('no valid types were passed in for {}'.format(obj_name))
         if None in obj_types:
             valid_types.remove(None)
-            valid_types.sort()
             valid_types.append(type(None))
         if not isinstance(obj, tuple(valid_types)):
             valid_str = ', '.join([t.__name__ for t in valid_types])
@@ -169,7 +180,7 @@ class YumRepo(object):
         cls._validate_type(opts['srcpkgs'], 'srcpkgs', bool, None)
         cls._validate_type(opts['newestonly'], 'newestonly', bool, None)
         cls._validate_type(opts['labels'], 'labels', dict)
-        for label, value in opts['labels'].iteritems():
+        for label, value in six.iteritems(opts['labels']):
             cls._validate_type(label, 'label_name_{}'.format(label), str)
             cls._validate_type(value, 'label_value_{}'.format(label), str)
 
@@ -374,7 +385,7 @@ class YumRepo(object):
             self._callback('repo_init', nb_packages, True)
 
 
-            for _dir, _files in packages.iteritems():
+            for _dir, _files in six.iteritems(packages):
                 for _file in _files:
                     if _dir[0] is not None and isinstance(_dir[0], int):
                         package_dir = os.path.join(self.package_dir, "repo_{}".format(_dir[0]))
@@ -567,7 +578,7 @@ class YumRepo(object):
                 self._callback('repo_link_set', 'stable', self.stable)
             elif os.path.lexists(os.path.join(self.dir, 'stable')):
                 os.unlink(os.path.join(self.dir, 'stable'))
-            for label, version in self.labels.iteritems():
+            for label, version in six.iteritems(self.labels):
                 util.symlink(os.path.join(self.dir, label), version)
                 self._callback('repo_link_set', label, version)
 
