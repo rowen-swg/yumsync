@@ -41,7 +41,7 @@ def unpickle_method(func_name, obj, cls):
 
 copy_reg.pickle(types.MethodType, pickle_method, unpickle_method)
 
-def sync(repos=None, callback=None, processes=None, workers=1):
+def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True):
     """ Mirror repositories with configuration data from multiple sources.
 
     Handles all input validation and higher-level logic before passing control
@@ -51,6 +51,12 @@ def sync(repos=None, callback=None, processes=None, workers=1):
 
     if repos is None:
         repos = []
+
+    # Don't multiprocess when asked
+    if multiprocess == False:
+        for repo in repos:
+            repo.sync()
+        sys.exit(0)
 
     prog = progress.Progress()  # callbacks talk to this object
     manager = multiprocessing.Manager()

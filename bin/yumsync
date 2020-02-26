@@ -197,7 +197,7 @@ def handle_repos(repos):
 
     mycallback_instance = mycallback(log_dirs)
 
-    return yumsync.sync(repos, mycallback_instance, processes=PROCESSES, workers=WORKERS)
+    return yumsync.sync(repos, mycallback_instance, processes=PROCESSES, workers=WORKERS, multiprocess=not SEQUENTIAL)
 
 def print_summary(repos, errors, elapsed):
     repo_str = 'repository' if repos == 1 else 'repositories'
@@ -282,6 +282,9 @@ if __name__ == '__main__':
         help='Number of repo to process in parallel')
     parser.add_argument('-r', '--relocate', action='store_true', default=False,
         help='Only recreate symlinks based on absolute paths')
+    parser.add_argument('-S', '--sequential', action='store_true', default=False,
+        help='Do not parallelize builds. Disables progress interface')
+
     args = parser.parse_args()
     REPOFILE     = args.config
     OUTDIR       = args.directory
@@ -294,4 +297,5 @@ if __name__ == '__main__':
     PROCESSES    = int(args.process)
     WORKERS      = int(args.worker)
     RELOCATE     = args.relocate
+    SEQUENTIAL   = args.sequential
     main()
