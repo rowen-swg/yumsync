@@ -412,28 +412,29 @@ class YumRepo(object):
 
     def _download_remote_packages(self):
         try:
-            yb = dnf.Base()
-            yb.conf.cachedir = tempfile.mkdtemp(prefix='yumsync-', suffix='-dnf')
-            yb.conf.debuglevel = 0
-            yb.conf.errorlevel = 3
-            repo = self._set_path(self.package_dir)
-            yb.repos.add(repo)
-            yb.fill_sack()
-            p_query = yb.sack.query().available()
-            if self.newestonly:
-                p_query = repo_query.latest(limit=1)
-            packages = list(p_query)
-            # Inform about number of packages total in the repo.
-            # Check if the packages are already downloaded. This is probably a bit
-            # expensive, but the alternative is simply not knowing, which is
-            # horrible for progress indication.
-            if packages:
-                for po in packages:
-                    local = po.localPkg()
-                    self._packages.append(os.path.basename(local))
-                    if os.path.exists(local):
-                        self._callback('pkg_exists', os.path.basename(local))
-                yb.download_packages(packages, progress=progress.DownloadProgress(self._callback))
+            with util.TemporaryDirectory(prefix='yumsync-', suffix='-dnf') as tempfile:
+                yb = dnf.Base()
+                yb.conf.cachedir = tempfile
+                yb.conf.debuglevel = 0
+                yb.conf.errorlevel = 3
+                repo = self._set_path(self.package_dir)
+                yb.repos.add(repo)
+                yb.fill_sack()
+                p_query = yb.sack.query().available()
+                if self.newestonly:
+                    p_query = repo_query.latest(limit=1)
+                packages = list(p_query)
+                # Inform about number of packages total in the repo.
+                # Check if the packages are already downloaded. This is probably a bit
+                # expensive, but the alternative is simply not knowing, which is
+                # horrible for progress indication.
+                if packages:
+                    for po in packages:
+                        local = po.localPkg()
+                        self._packages.append(os.path.basename(local))
+                        if os.path.exists(local):
+                            self._callback('pkg_exists', os.path.basename(local))
+                    yb.download_packages(packages, progress=progress.DownloadProgress(self._callback))
             self._callback('repo_complete')
         except (KeyboardInterrupt, SystemExit):
             pass
@@ -477,20 +478,21 @@ class YumRepo(object):
             for repo_dir in repo_dirs:
                 if not os.path.exists(os.path.join(repo_dir, 'repodata')):
                     continue
-                yb = dnf.Base()
-                yb.conf.cachedir = tempfile.mkdtemp(prefix='yumsync-', suffix='-dnf')
-                yb.conf.debuglevel = 0
-                yb.conf.errorlevel = 3
-                repo = dnf.repo.Repo("yumsync_temp_md_repo", dnf.Base().conf)
-                repo.metalink = None
-                repo.mirrorlist = None
-                repo.baseurl = "file://{}".format(repo_dir)
-                yb.repos.add(repo)
-                yb.fill_sack()
-                self._repomd = {
-                    ("modules", "modules.yaml"): repo.get_metadata_content('modules'),
-                    ("group", "comps.xml"): repo.get_metadata_content('group_gz'),
-                }
+                with util.TemporaryDirectory(prefix='yumsync-', suffix='-dnf') as tempfile:
+                    yb = dnf.Base()
+                    yb.conf.cachedir = tempfile
+                    yb.conf.debuglevel = 0
+                    yb.conf.errorlevel = 3
+                    repo = dnf.repo.Repo("yumsync_temp_md_repo", dnf.Base().conf)
+                    repo.metalink = None
+                    repo.mirrorlist = None
+                    repo.baseurl = "file://{}".format(repo_dir)
+                    yb.repos.add(repo)
+                    yb.fill_sack()
+                    self._repomd = {
+                        ("modules", "modules.yaml"): repo.get_metadata_content('modules'),
+                        ("group", "comps.xml"): repo.get_metadata_content('group_gz'),
+                    }
                 break
         else:
             self._repomd = {
