@@ -523,9 +523,9 @@ class YumRepo(object):
             self.metadata_progress += 1
             self._callback('repo_metadata', int((self.metadata_progress+1)*100//self.total_pkgs))
 
-        def process_pkg(filename):
+        def process_pkg(filename, repo_path):
             pkg = createrepo.package_from_rpm(filename)
-            pkg.location_href = os.path.basename(filename)
+            pkg.location_href = os.path.relpath(filename, start=repo_path)
             return pkg
 
         try:
@@ -538,7 +538,7 @@ class YumRepo(object):
             with ThreadPoolExecutor(max_workers=self._workers) as executor:
                 futures = []
                 for filename in pkg_list:
-                    future = executor.submit(process_pkg, filename)
+                    future = executor.submit(process_pkg, filename, self.dir)
                     future.add_done_callback(collect_result)
                     futures.append(future)
                 for future in futures:
