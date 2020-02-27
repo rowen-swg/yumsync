@@ -85,6 +85,7 @@ class YumRepo(object):
         # set repo placeholders
         self._packages = []
         self._comps = None
+        self._repomd = None
 
     def setup(self):
         # set actual repo object
@@ -464,18 +465,39 @@ class YumRepo(object):
                 target_file = os.path.join(self.version_package_dir, pkg)
                 util.hardlink(source_file, target_file)
 
-    def get_group_data(self):
+    def get_md_data(self):
         if self.local_dir:
-            self._comps = None
-        else:
-            try:
+            # If it's a local_dir, don't bother merging metadata.
+            # Only pick the first available metadata (if any)
+            self._repomd = None
+            if isinstance(self.local_dir, str):
+                repo_dirs = [ self.local_dir ]
+            elif isinstance(self.local_dir, list):
+                repo_dirs = [ l for l in self.local_dir ]
+            for repo_dir in repo_dirs:
+                if not os.path.exists(os.path.join(repo_dir, 'repodata')):
+                    continue
                 yb = dnf.Base()
-                yb.repos.add(self.__repo_obj)
-                yb.read_comps(arch_filter=False)
-                self._comps = yb.comps
-            except dnf.exceptions.CompsError:
-                pass
-        if self._comps:
+                yb.conf.cachedir = tempfile.mkdtemp(prefix='yumsync-', suffix='-dnf')
+                yb.conf.debuglevel = 0
+                yb.conf.errorlevel = 3
+                repo = dnf.repo.Repo("yumsync_temp_md_repo", dnf.Base().conf)
+                repo.metalink = None
+                repo.mirrorlist = None
+                repo.baseurl = "file://{}".format(repo_dir)
+                yb.repos.add(repo)
+                yb.fill_sack()
+                self._repomd = {
+                    ("modules", "modules.yaml"): repo.get_metadata_content('modules'),
+                    ("group", "comps.xml"): repo.get_metadata_content('group_gz'),
+                }
+                break
+        else:
+            self._repomd = {
+                ("modules", "modules.yaml"): self.__repo_obj.get_metadata_content('modules'),
+                ("group", "comps.xml"): self.__repo_obj.get_metadata_content('group_gz'),
+            }
+        if self._repomd:
             self._callback('repo_group_data', 'available')
         else:
             self._callback('repo_group_data', 'unavailable')
@@ -584,16 +606,16 @@ class YumRepo(object):
                 db_to_update.close()
             repomd.set_record(record)
 
+        if self._repomd:
+            for md_type, md_content in six.iteritems(self._repomd):
+                md_file = os.path.join(repodata_path, md_type[1])
+                with open(md_file, 'w') as f:
+                    f.write(md_content)
+                record = createrepo.RepomdRecord(md_type[0], md_file)
+                record.fill(createrepo.SHA256)
+                repomd.set_record(record)
+
         open(repomd_path, "w").write(repomd.xml_dump())
-
-        if self._comps:
-            groupdir = tempfile.mkdtemp(prefix='yumsync-', suffix='-groupdata')
-            conf.groupfile = os.path.join(groupdir, 'groups.xml')
-            with open(conf.groupfile, 'w') as f:
-                f.write(self._comps)
-
-        if self._comps and os.path.exists(groupdir):
-            shutil.rmtree(groupdir)
 
         return staging
 
@@ -606,7 +628,7 @@ class YumRepo(object):
 
 
     def prepare_metadata(self):
-        self.get_group_data()
+        self.get_md_data()
         self._callback('repo_metadata', 'building')
 
         try:
