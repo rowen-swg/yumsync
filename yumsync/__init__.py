@@ -23,6 +23,8 @@ import types
 
 import logging
 
+import six
+
 def pickle_method(method):
     func_name = method.im_func.__name__
     obj = method.im_self
@@ -91,7 +93,10 @@ def sync(repos=None, callback=None, processes=None, workers=1, multiprocess=True
         repo.set_yum_callback(yumcallback)
         repo.set_repo_callback(repocallback)
 
-        process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers}, error_callback=err_callback))
+        if six.PY2:
+            process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers}))
+        elif six.PY3:
+            process_results.append(pool.apply_async(repo.sync, kwds={"workers": workers}, error_callback=err_callback))
 
     while len(process_results) > 0:
         # If data is waiting in the queue from the workers, process it. This
