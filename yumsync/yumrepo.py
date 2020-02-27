@@ -326,6 +326,12 @@ class YumRepo(object):
             pkg_path = os.path.join(directory, package)
             with open(pkg_path, 'rb') as pkg:
                 return ts.hdrFromFdno(pkg)
+        except rpm.error as e:
+            if e.message == "public key not available":
+                return True
+            if e.message == "public key not trusted":
+                return True
+            return None
         except:
             return None
 
