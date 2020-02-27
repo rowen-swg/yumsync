@@ -202,7 +202,7 @@ class Progress(object):
             metadata = self.represent_repomd(repo_id, h5)
             if percent == 'complete':
                 percent = self.color(percent, 'green')
-            if metadata == 'building' or ((isinstance(metadata, int) or metadata.isdigit()) and int(metadata) < 100):
+            if metadata == 'building' or ((isinstance(metadata, int) or metadata.isdigit()) and int(metadata) <= 100):
                 if isinstance(metadata, str) and metadata.isdigit():
                     metadata += "%"
                 if isinstance(metadata, int):
