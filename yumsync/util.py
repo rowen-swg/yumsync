@@ -22,7 +22,13 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import os, tempfile, weakref, shutil, warnings
+import os, tempfile, shutil, warnings
+
+try:
+    from weakref import finalize
+except ImportError:
+    from yumsync.backports import finalize
+
 
 def make_dir(path):
     """ Create a directory recursively, if it does not exist. """
@@ -98,7 +104,7 @@ class TemporaryDirectory(object):
 
     def __init__(self, suffix=None, prefix=None, dir=None):
         self.name = tempfile.mkdtemp(suffix, prefix, dir)
-        self._finalizer = weakref.finalize(
+        self._finalizer = finalize(
             self, self._cleanup, self.name,
             warn_message="Implicitly cleaning up {!r}".format(self))
 
