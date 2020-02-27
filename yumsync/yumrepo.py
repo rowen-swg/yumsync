@@ -579,7 +579,7 @@ class YumRepo(object):
                         oth_db.add_pkg(pkg)
         else:
             for idx, filename in enumerate(pkg_list):
-                process_pkg(filename)
+                process_pkg(filename, self.dir)
                 collect_result(None)
 
         pri_xml.close()
