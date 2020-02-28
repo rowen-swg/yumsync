@@ -505,7 +505,13 @@ class YumRepo(object):
                 ("modules", "modules.yaml"): self.__repo_obj.get_metadata_content('modules'),
                 ("group", "comps.xml"): self.__repo_obj.get_metadata_content('group_gz'),
             }
+
         if self._repomd:
+            # Filter out empty metadata
+            for k, v in six.iteritems(self._repomd.copy()):
+                if len(v) != 0:
+                    continue
+                self._repomd.pop(k)
             self._callback('repo_group_data', 'available')
         else:
             self._callback('repo_group_data', 'unavailable')
