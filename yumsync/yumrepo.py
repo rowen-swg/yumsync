@@ -199,7 +199,7 @@ class YumRepo(object):
 
     @staticmethod
     def _get_repo_obj(repoid, localdir=None, baseurl=None, mirrorlist=None):
-        repo = dnf.repo.Repo(repoid, dnf.Base().conf)
+        repo = dnf.repo.Repo(repoid.replace('/', '_'), dnf.Base().conf)
         repo.baseurl = None
         repo.metalink = None
         repo.mirrorlist = None
