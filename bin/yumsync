@@ -165,7 +165,7 @@ def setup_public(repos):
             os.symlink(repo.dir, repo.public_dir)
 
 def stable_links(repos):
-    logging.info('setting stable links', header=True)
+    logging.info('setting stable links')
     for repo in repos:
         if repo.version:
             if repo.stable:
@@ -184,7 +184,7 @@ def stable_links(repos):
             logging.info('{}: label set to {}'.format(label, version))
 
 def labels_links(repos):
-    logging.info('setting labels links', header=True)
+    logging.info('setting labels links')
     for repo in repos:
         for label, version in repo.labels.iteritems():
             util.symlink(os.path.join(repo.dir, label), version)
