@@ -605,19 +605,25 @@ class YumRepo(object):
         # Prepare repomd.xml
         repomd = createrepo.Repomd()
 
-        repomdrecords = (("primary",      pri_xml_path, pri_db),
-                         ("filelists",    fil_xml_path, fil_db),
-                         ("other",        oth_xml_path, oth_db),
-                         ("primary_db",   pri_db_path,  None),
-                         ("filelists_db", fil_db_path,  None),
-                         ("other_db",     oth_db_path,  None))
+        # Order is important !
+        repomdrecords = (("primary",      pri_xml_path, pri_db, False),
+                         ("filelists",    fil_xml_path, fil_db, False),
+                         ("other",        oth_xml_path, oth_db, False),
+                         ("primary_db",   pri_db_path,  None,   True),
+                         ("filelists_db", fil_db_path,  None,   True),
+                         ("other_db",     oth_db_path,  None,   True))
 
-        for name, path, db_to_update in repomdrecords:
+        for name, path, db_to_update, compress in repomdrecords:
             record = createrepo.RepomdRecord(name, path)
-            record.fill(createrepo.SHA256)
+            if compress:
+                record.compress_and_fill(createrepo.SHA256, createrepo.XZ_COMPRESSION)
+            else:
+                record.fill(createrepo.SHA256)
+
             if (db_to_update):
                 db_to_update.dbinfo_update(record.checksum)
                 db_to_update.close()
+
             repomd.set_record(record)
 
         if self._repomd:
