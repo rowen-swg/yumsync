@@ -23,7 +23,7 @@ import tempfile
 import time
 # third-party imports
 import createrepo_c as createrepo
-import dnf, rpm
+import dnf, libdnf, rpm
 import six
 import yumsync.util as util
 import logging
@@ -91,7 +91,7 @@ class YumRepo(object):
         # set actual repo object
         self.__repo_obj = self._get_repo_obj(self.id, self.local_dir, self.baseurl, self.mirrorlist)
         self.__repo_obj.includepkgs = self.incl_pkgs
-        self.__repo_obj.exclude = self.excl_pkgs
+        self.__repo_obj.excludepkgs = self.excl_pkgs
 
     @staticmethod
     def _validate_type(obj, obj_name, *obj_types):
@@ -341,16 +341,17 @@ class YumRepo(object):
         progress_counter = 0
         include_globs = []
         exclude_globs = []
+
         if self.__repo_obj.includepkgs is not None:
-            if isinstance(self.__repo_obj.includepkgs, list):
+            if isinstance(self.__repo_obj.includepkgs, list) or isinstance(self.__repo_obj.includepkgs, libdnf.module.VectorString):
                 include_globs = self.__repo_obj.includepkgs
             elif isinstance(self.__repo_obj.includepkgs, str):
                 include_globs = [self.__repo_obj.includepkgs]
-        if self.__repo_obj.exclude is not None:
-            if isinstance(self.__repo_obj.exclude, list):
-                exclude_globs = self.__repo_obj.exclude
-            elif isinstance(self.__repo_obj.exclude, str):
-                exclude_globs = [self.__repo_obj.exclude]
+        if self.__repo_obj.excludepkgs is not None:
+            if isinstance(self.__repo_obj.excludepkgs, list) or isinstance(self.__repo_obj.excludepkgs, libdnf.module.VectorString):
+                exclude_globs = self.__repo_obj.excludepkgs
+            elif isinstance(self.__repo_obj.excludepkgs, str):
+                exclude_globs = [self.__repo_obj.excludepkgs]
 
         for root, dirnames, filenames in os.walk(local_dir, topdown=False, followlinks=True):
             for filename in filenames:
