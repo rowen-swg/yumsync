@@ -421,6 +421,7 @@ class YumRepo(object):
     def _download_remote_packages(self):
         try:
             with util.TemporaryDirectory(prefix='yumsync-', suffix='-dnf') as tempfile:
+                self._callback('repo_init', 0, True)
                 yb = dnf.Base()
                 yb.conf.cachedir = tempfile
                 yb.conf.debuglevel = 0
@@ -437,6 +438,7 @@ class YumRepo(object):
                 # expensive, but the alternative is simply not knowing, which is
                 # horrible for progress indication.
                 if packages:
+                    self._callback('repo_init', len(packages), True)
                     for po in packages:
                         local = po.localPkg()
                         self._packages.append(os.path.basename(local))
