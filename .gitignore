@@ -3,3 +3,7 @@
 /fixtures/*
 /yumsync.egg-info/
 !.gitkeep
+yumsync/*.pyc
+yumsync/__pycache__
+venv/
+yumsync.log
