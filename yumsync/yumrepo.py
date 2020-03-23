@@ -203,6 +203,7 @@ class YumRepo(object):
         repo.baseurl = None
         repo.metalink = None
         repo.mirrorlist = None
+        repo.module_hotfixes = True
 
         if baseurl is not None:
             repo.baseurl = baseurl
