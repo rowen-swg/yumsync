@@ -428,7 +428,7 @@ class YumRepo(object):
                 yb.fill_sack()
                 p_query = yb.sack.query().available()
                 if self.newestonly:
-                    p_query = repo_query.latest(limit=1)
+                    p_query = p_query.latest()
                 packages = list(p_query)
                 # Inform about number of packages total in the repo.
                 # Check if the packages are already downloaded. This is probably a bit
