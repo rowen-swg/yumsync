@@ -22,7 +22,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import os, tempfile, shutil, warnings
+import os, tempfile, shutil
 
 try:
     from weakref import finalize
@@ -141,7 +141,6 @@ class TemporaryDirectory(object):
     @classmethod
     def _cleanup(cls, name, warn_message):
         cls._rmtree(name)
-        warnings.warn(warn_message, ResourceWarning)
 
     def __repr__(self):
         return "<{} {!r}>".format(self.__class__.__name__, self.name)
