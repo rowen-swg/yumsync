@@ -66,6 +66,8 @@ class YumRepo(object):
         self.srcpkgs = opts['srcpkgs']
         self.newestonly = opts['newestonly']
         self.labels = opts['labels']
+        self._dnfcache_file = util.TemporaryDirectory(prefix='yumsync-', suffix='-dnfcache')
+        self._dnfcache = self._dnfcache_file.name
 
         # root directory for repo and packages
         self.dir = os.path.join(base_dir, self._friendly(self.id))
@@ -197,9 +199,12 @@ class YumRepo(object):
     def _friendly(cls, text):
         return cls._sanitize(text).replace('/', '_')
 
-    @staticmethod
-    def _get_repo_obj(repoid, localdir=None, baseurl=None, mirrorlist=None):
-        repo = dnf.repo.Repo(repoid.replace('/', '_'), dnf.Base().conf)
+    def _get_repo_obj(self, repoid, localdir=None, baseurl=None, mirrorlist=None):
+        base = dnf.Base()
+        base.conf.cachedir = self._dnfcache
+        base.conf.debuglevel = 0
+        base.conf.errorlevel = 3
+        repo = dnf.repo.Repo(repoid.replace('/', '_'), base.conf)
         repo.baseurl = None
         repo.metalink = None
         repo.mirrorlist = None
@@ -419,40 +424,39 @@ class YumRepo(object):
             raise PackageDownloadError(str(e))
 
     def _download_remote_packages(self):
-        with util.TemporaryDirectory(prefix='yumsync-', suffix='-dnf') as tempfile:
-            self._callback('repo_init', 0, True)
-            yb = dnf.Base()
-            yb.conf.cachedir = tempfile
-            yb.conf.debuglevel = 0
-            yb.conf.errorlevel = 3
-            repo = self._set_path(self.package_dir)
-            yb.repos.add(repo)
-            yb.fill_sack()
-            p_query = yb.sack.query().available()
-            if self.newestonly:
-                p_query = p_query.latest()
-            packages = list(p_query)
-            # Inform about number of packages total in the repo.
-            # Check if the packages are already downloaded. This is probably a bit
-            # expensive, but the alternative is simply not knowing, which is
-            # horrible for progress indication.
-            if packages:
-                self._callback('repo_init', len(packages), True)
-                for po in packages:
-                    local = po.localPkg()
-                    self._packages.append(os.path.basename(local))
-                    if os.path.exists(local):
-                        self._callback('pkg_exists', os.path.basename(local))
-                try:
-                    yb.download_packages(packages, progress=progress.DownloadProgress(self._callback))
-                except (KeyboardInterrupt, SystemExit):
-                    return
-                except dnf.exceptions.DownloadError as e:
-                    self._callback('repo_error', str(e))
-                except Exception as e:
-                    self._callback('repo_error', str(e))
-                    raise PackageDownloadError(str(e))
-            self._callback('repo_complete')
+        self._callback('repo_init', 0, True)
+        yb = dnf.Base()
+        yb.conf.cachedir = self._dnfcache
+        yb.conf.debuglevel = 0
+        yb.conf.errorlevel = 3
+        repo = self._set_path(self.package_dir)
+        yb.repos.add(repo)
+        yb.fill_sack()
+        p_query = yb.sack.query().available()
+        if self.newestonly:
+            p_query = p_query.latest()
+        packages = list(p_query)
+        # Inform about number of packages total in the repo.
+        # Check if the packages are already downloaded. This is probably a bit
+        # expensive, but the alternative is simply not knowing, which is
+        # horrible for progress indication.
+        if packages:
+            self._callback('repo_init', len(packages), True)
+            for po in packages:
+                local = po.localPkg()
+                self._packages.append(os.path.basename(local))
+                if os.path.exists(local):
+                    self._callback('pkg_exists', os.path.basename(local))
+            try:
+                yb.download_packages(packages, progress=progress.DownloadProgress(self._callback))
+            except (KeyboardInterrupt, SystemExit):
+                return
+            except dnf.exceptions.DownloadError as e:
+                self._callback('repo_error', str(e))
+            except Exception as e:
+                self._callback('repo_error', str(e))
+                raise PackageDownloadError(str(e))
+        self._callback('repo_complete')
 
     def prune_packages(self):
         # exit if we don't have packages
