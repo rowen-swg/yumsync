@@ -222,7 +222,7 @@ def main():
         try:
             repos.append(yumrepo.YumRepo(repoid, OUTDIR, repo_config[repoid]))
         except Exception as e:
-            logging.info('{}: {} (skipping)'.format(repoid, e), force=True)
+            logging.info('{}: {} (skipping)'.format(repoid, e))
             continue
 
     logging.info('{:d} repos to sync'.format(len(repos)))
