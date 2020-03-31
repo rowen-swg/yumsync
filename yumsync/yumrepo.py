@@ -393,13 +393,14 @@ class YumRepo(object):
                 nb_packages += len(packages[(None, self.local_dir)])
             elif isinstance(self.local_dir, list):
                 packages = {}
+                files = {}
                 for idx, local_dir in enumerate(self.local_dir):
-                    files = self._find_rpms(local_dir)
-                    nb_packages += len(files)
+                    files[(idx, local_dir)] = self._find_rpms(local_dir)
+                    nb_packages += len(files[(idx,local_dir)])
                     self._callback('repo_init', nb_packages, True)
-                    packages[(idx, local_dir)] = self._validate_packages(local_dir, files)
+                for local_dir_idx, rpm_files in six.iteritems(files):
+                    packages[local_dir_idx] = self._validate_packages(local_dir_idx[1], rpm_files)
             self._callback('repo_init', nb_packages, True)
-
 
             for _dir, _files in six.iteritems(packages):
                 for _file in _files:
