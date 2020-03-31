@@ -487,7 +487,11 @@ class YumRepo(object):
         if self.local_dir:
             # If it's a local_dir, don't bother merging metadata.
             # Only pick the first available metadata (if any)
-            self._repomd = None
+            self._repomd = {
+                ("modules", "modules.yaml"): "",
+                ("group", "comps.xml"): "",
+            }
+            repomds = []
             if isinstance(self.local_dir, str):
                 repo_dirs = [ self.local_dir ]
             elif isinstance(self.local_dir, list):
@@ -495,22 +499,26 @@ class YumRepo(object):
             for repo_dir in repo_dirs:
                 if not os.path.exists(os.path.join(repo_dir, 'repodata')):
                     continue
-                with util.TemporaryDirectory(prefix='yumsync-', suffix='-dnf') as tempfile:
-                    yb = dnf.Base()
-                    yb.conf.cachedir = tempfile
-                    yb.conf.debuglevel = 0
-                    yb.conf.errorlevel = 3
-                    repo = dnf.repo.Repo("yumsync_temp_md_repo", dnf.Base().conf)
-                    repo.metalink = None
-                    repo.mirrorlist = None
-                    repo.baseurl = "file://{}".format(repo_dir)
-                    yb.repos.add(repo)
-                    yb.fill_sack()
-                    self._repomd = {
-                        ("modules", "modules.yaml"): repo.get_metadata_content('modules'),
-                        ("group", "comps.xml"): repo.get_metadata_content('group_gz'),
-                    }
-                break
+                yb = dnf.Base()
+                yb.conf.cachedir = self._dnfcache
+                yb.conf.debuglevel = 0
+                yb.conf.errorlevel = 3
+                repo = dnf.repo.Repo("yumsync_temp_md_repo", dnf.Base().conf)
+                repo.metalink = None
+                repo.mirrorlist = None
+                repo.baseurl = "file://{}".format(repo_dir)
+                yb.repos.add(repo)
+                yb.fill_sack()
+                repomds.append({
+                    ("modules", "modules.yaml"): repo.get_metadata_content('modules'),
+                    ("group", "comps.xml"): repo.get_metadata_content('group_gz'),
+                })
+            # Combine modular MD of each repo
+            # Only keep the first "comps" we find
+            for repomd in repomds:
+                self._repomd[("modules", "modules.yaml")] += repomd.get(("modules", "modules.yaml"), "")
+                if self._repomd.get(("group", "comps.xml"), "") == "":
+                    self._repomd[("group", "comps.xml")] = repomd.get(("group", "comps.xml"), "")
         else:
             self._repomd = {
                 ("modules", "modules.yaml"): self.__repo_obj.get_metadata_content('modules'),
