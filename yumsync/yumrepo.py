@@ -419,38 +419,40 @@ class YumRepo(object):
             raise PackageDownloadError(str(e))
 
     def _download_remote_packages(self):
-        try:
-            with util.TemporaryDirectory(prefix='yumsync-', suffix='-dnf') as tempfile:
-                self._callback('repo_init', 0, True)
-                yb = dnf.Base()
-                yb.conf.cachedir = tempfile
-                yb.conf.debuglevel = 0
-                yb.conf.errorlevel = 3
-                repo = self._set_path(self.package_dir)
-                yb.repos.add(repo)
-                yb.fill_sack()
-                p_query = yb.sack.query().available()
-                if self.newestonly:
-                    p_query = p_query.latest()
-                packages = list(p_query)
-                # Inform about number of packages total in the repo.
-                # Check if the packages are already downloaded. This is probably a bit
-                # expensive, but the alternative is simply not knowing, which is
-                # horrible for progress indication.
-                if packages:
-                    self._callback('repo_init', len(packages), True)
-                    for po in packages:
-                        local = po.localPkg()
-                        self._packages.append(os.path.basename(local))
-                        if os.path.exists(local):
-                            self._callback('pkg_exists', os.path.basename(local))
+        with util.TemporaryDirectory(prefix='yumsync-', suffix='-dnf') as tempfile:
+            self._callback('repo_init', 0, True)
+            yb = dnf.Base()
+            yb.conf.cachedir = tempfile
+            yb.conf.debuglevel = 0
+            yb.conf.errorlevel = 3
+            repo = self._set_path(self.package_dir)
+            yb.repos.add(repo)
+            yb.fill_sack()
+            p_query = yb.sack.query().available()
+            if self.newestonly:
+                p_query = p_query.latest()
+            packages = list(p_query)
+            # Inform about number of packages total in the repo.
+            # Check if the packages are already downloaded. This is probably a bit
+            # expensive, but the alternative is simply not knowing, which is
+            # horrible for progress indication.
+            if packages:
+                self._callback('repo_init', len(packages), True)
+                for po in packages:
+                    local = po.localPkg()
+                    self._packages.append(os.path.basename(local))
+                    if os.path.exists(local):
+                        self._callback('pkg_exists', os.path.basename(local))
+                try:
                     yb.download_packages(packages, progress=progress.DownloadProgress(self._callback))
+                except (KeyboardInterrupt, SystemExit):
+                    return
+                except dnf.exceptions.DownloadError as e:
+                    self._callback('repo_error', str(e))
+                except Exception as e:
+                    self._callback('repo_error', str(e))
+                    raise PackageDownloadError(str(e))
             self._callback('repo_complete')
-        except (KeyboardInterrupt, SystemExit):
-            pass
-        except Exception as e:
-            self._callback('repo_error', str(e))
-            raise PackageDownloadError(str(e))
 
     def prune_packages(self):
         # exit if we don't have packages
