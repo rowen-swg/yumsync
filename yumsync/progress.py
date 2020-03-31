@@ -192,24 +192,22 @@ class Progress(object):
 
         if 'error' in self.repos[repo_id]:
             repo = self.color(repo, 'red')
-            packages = self.color('{:^{}s}'.format('error', h2 + h3 + 1), 'red')
-            percent = self.color('{:^{}s}'.format('-', h4), 'red')
-            metadata = self.color('{:^{}s}'.format('-', h5), 'red')
         else:
             repo = self.color(repo, 'blue')
-            packages = self.represent_repo_pkgs(repo_id, h2, h3)
-            percent = self.represent_repo_percent(repo_id, h4)
-            metadata = self.represent_repomd(repo_id, h5)
-            if percent == 'complete':
-                percent = self.color(percent, 'green')
-            if metadata == 'building' or ((isinstance(metadata, int) or metadata.isdigit()) and int(metadata) <= 100):
-                if isinstance(metadata, str) and metadata.isdigit():
-                    metadata += "%"
-                if isinstance(metadata, int):
-                    metadata = "{}%".format(metadata)
-                metadata = self.color(metadata, 'yellow')
-            elif metadata == 'complete':
-                metadata = self.color(metadata, 'green')
+
+        packages = self.represent_repo_pkgs(repo_id, h2, h3)
+        percent = self.represent_repo_percent(repo_id, h4)
+        metadata = self.represent_repomd(repo_id, h5)
+        if percent == 'complete':
+            percent = self.color(percent, 'green')
+        if metadata == 'building' or ((isinstance(metadata, int) or metadata.isdigit()) and int(metadata) <= 100):
+            if isinstance(metadata, str) and metadata.isdigit():
+                metadata += "%"
+            if isinstance(metadata, int):
+                metadata = "{}%".format(metadata)
+            metadata = self.color(metadata, 'yellow')
+        elif metadata == 'complete':
+            metadata = self.color(metadata, 'green')
         return self.format_line(repo, packages, percent, metadata)
 
     def represent_total(self, h1, h2, h3, h4, h5):
