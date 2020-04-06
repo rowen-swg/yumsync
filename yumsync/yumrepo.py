@@ -564,7 +564,19 @@ class YumRepo(object):
         oth_db  = createrepo.OtherSqlite(oth_db_path)
 
         # Set package list
-        pkg_list = [os.path.join(self.package_dir,"{}".format(pkg)) for pkg in self._packages]
+        if self.local_dir and self.link_type == "individual_symlink" and self.version_dir:
+            pkg_list = [
+                (
+                    os.path.join(self.version_package_dir,"{}".format(pkg)),
+                    os.path.join("packages","{}".format(pkg))
+                ) for pkg in self._packages]
+        else:
+            pkg_list = [
+                (
+                    os.path.join(self.package_dir,"{}".format(pkg)),
+                    os.path.join("packages","{}".format(pkg))
+                )for pkg in self._packages]
+
         pri_xml.set_num_of_pkgs(len(pkg_list))
         fil_xml.set_num_of_pkgs(len(pkg_list))
         oth_xml.set_num_of_pkgs(len(pkg_list))
@@ -578,9 +590,9 @@ class YumRepo(object):
             self.metadata_progress += 1
             self._callback('repo_metadata', int((self.metadata_progress+1)*100//self.total_pkgs))
 
-        def process_pkg(filename, repo_path):
+        def process_pkg(filename, href):
             pkg = createrepo.package_from_rpm(filename)
-            pkg.location_href = os.path.relpath(filename, start=repo_path)
+            pkg.location_href = href
             return pkg
 
         try:
@@ -593,7 +605,7 @@ class YumRepo(object):
             with ThreadPoolExecutor(max_workers=self._workers) as executor:
                 futures = []
                 for filename in pkg_list:
-                    future = executor.submit(process_pkg, filename, self.dir)
+                    future = executor.submit(process_pkg, filename[0], filename[1])
                     future.add_done_callback(collect_result)
                     futures.append(future)
                 for future in futures:
@@ -610,7 +622,7 @@ class YumRepo(object):
                         oth_db.add_pkg(pkg)
         else:
             for idx, filename in enumerate(pkg_list):
-                process_pkg(filename, self.dir)
+                process_pkg(filename[0], filename[1])
                 collect_result(None)
 
         pri_xml.close()
