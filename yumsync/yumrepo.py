@@ -333,9 +333,13 @@ class YumRepo(object):
             with open(pkg_path, 'rb') as pkg:
                 return ts.hdrFromFdno(pkg)
         except rpm.error as e:
-            if e.message == "public key not available":
+            if hasattr(e, "message") and e.message == "public key not available":
                 return True
-            if e.message == "public key not trusted":
+            if hasattr(e, "message") and e.message == "public key not trusted":
+                return True
+            if str(e) == "public key not available":
+                return True
+            if str(e) == "public key not trusted":
                 return True
             return None
         except:
