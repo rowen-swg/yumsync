@@ -86,6 +86,7 @@ class YumRepo(object):
 
         # set repo placeholders
         self._packages = []
+        self._package_headers = {}
         self._comps = None
         self._repomd = None
 
@@ -312,15 +313,19 @@ class YumRepo(object):
             self._download_remote_packages()
 
     def _validate_packages(self, directory, packages):
-        ts = rpm.TransactionSet()
+        ts = rpm.TransactionSet("/", rpm.RPMVSF_MASK_NOSIGNATURES)
         if isinstance(packages, str):
             self._callback('pkg_exists', packages)
-            return self._validate_package(ts, directory, packages)
+            package, hdr = self._validate_package(ts, directory, packages)
+            if hdr:
+                return package, hdr
+            return package, None
         elif isinstance(packages, list):
             valid = []
             for pkg in packages:
-                if self._validate_package(ts, directory, pkg):
-                    valid.append(pkg)
+                package, hdr = self._validate_package(ts, directory, pkg)
+                if hdr:
+                    valid.append((package, hdr))
                     self._callback('pkg_exists', pkg)
             return valid
         else:
@@ -331,19 +336,9 @@ class YumRepo(object):
         try:
             pkg_path = os.path.join(directory, package)
             with open(pkg_path, 'rb') as pkg:
-                return ts.hdrFromFdno(pkg)
-        except rpm.error as e:
-            if hasattr(e, "message") and e.message == "public key not available":
-                return True
-            if hasattr(e, "message") and e.message == "public key not trusted":
-                return True
-            if str(e) == "public key not available":
-                return True
-            if str(e) == "public key not trusted":
-                return True
-            return None
+                return package, ts.hdrFromFdno(pkg)
         except:
-            return None
+            return package, None
 
     def _find_rpms(self, local_dir):
         matches = []
@@ -407,7 +402,7 @@ class YumRepo(object):
             self._callback('repo_init', nb_packages, True)
 
             for _dir, _files in six.iteritems(packages):
-                for _file in _files:
+                for _file, _hdr in _files:
                     if _dir[0] is not None and isinstance(_dir[0], int):
                         package_dir = os.path.join(self.package_dir, "repo_{}".format(_dir[0]))
                         file_path = os.path.join("repo_{}".format(_dir[0]), _file)
@@ -415,6 +410,7 @@ class YumRepo(object):
                         package_dir = self.package_dir
                         file_path = _file
                     self._packages.append(file_path)
+                    self._package_headers[file_path] = _hdr
                     if self.link_type == 'hardlink':
                         status = util.hardlink(os.path.join(_dir[1], _file), os.path.join(package_dir, _file))
                         if status:
