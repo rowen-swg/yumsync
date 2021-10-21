@@ -459,10 +459,32 @@ class YumRepo(object):
                 raise PackageDownloadError(str(e))
         self._callback('repo_complete')
 
+    def deduplicate_rpm(self):
+        nevra_index = set()
+        print(len(self._packages))
+        for pkg_path, pkg_header in six.iteritems(self._package_headers):
+            if pkg_header is not None:
+                nevra = "{}-{}-{}-{}.{}".format(
+                    pkg_header['name'],
+                    pkg_header['epoch'],
+                    pkg_header['version'],
+                    pkg_header['release'],
+                    pkg_header['arch'])
+                if nevra in nevra_index:
+                    self._packages.remove(pkg_path)
+                else:
+                    nevra_index.add(nevra)
+
     def prune_packages(self):
         # exit if we don't have packages
         if not self._packages or len(self._packages) == 0:
             return
+        packages_filenames = list(map(lambda x: os.path.basename(x), self._packages))
+        unique_filenames = set(packages_filenames)
+        if len(unique_filenames) != len(packages_filenames):
+            # Some RPMs have the same names, prune them
+            self.deduplicate_rpm()
+
         if self.delete:
             if not self.version or (self.link_type != 'symlink' and self.link_type != 'individual_symlink'):
                 for _file in os.listdir(self.package_dir):
