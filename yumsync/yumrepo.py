@@ -313,7 +313,11 @@ class YumRepo(object):
             self._download_remote_packages()
 
     def _validate_packages(self, directory, packages):
-        ts = rpm.TransactionSet("/", rpm.RPMVSF_MASK_NOSIGNATURES)
+        if hasattr(rpm, "RPMVSF_MASK_NOSIGNATURES"):
+            no_signature_check__mask = rpm.RPMVSF_MASK_NOSIGNATURES
+        else:
+            no_signature_check_mask = rpm.RPMVSF_NODSAHEADER | rpm.RPMVSF_NORSAHEADER | rpm.RPMVSF_NODSA | rpm.RPMVSF_NORSA
+        ts = rpm.TransactionSet("/", no_signature_check_mask)
         if isinstance(packages, str):
             self._callback('pkg_exists', packages)
             package, hdr = self._validate_package(ts, directory, packages)
